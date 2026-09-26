@@ -64,28 +64,38 @@ function getIndicatorStatus(type, value) {
   return { colorClass: 'green', trend: 'up' };
 }
 
-// ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่ระบุ
+// ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่ระบุ (มี Timeout ป้องกันหน้าเว็บค้าง)
 async function fetchIndicatorFromWorldBank(indicatorCode, year) {
   const url = `https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`;
-  const response = await fetch(url);
-  const data = await response.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000); // หากเกิน 6 วินาทีให้ยกเลิกทันที ไม่ให้รอนาน
 
-  let list = [];
-  if (data && data[1]) {
-    for (let item of data[1]) {
-      // กรองเอาเฉพาะข้อมูลที่มีตัวเลข และไม่ใช่ชื่อภูมิภาค (Aggregates)
-      if (item.value !== null && item.countryiso3code && !item.country.value.includes('&')) {
-        list.push({
-          country: item.country.value,
-          countryCode: item.countryiso3code,
-          value: parseFloat(item.value.toFixed(1)),
-          displayValue: item.value.toFixed(1) + '%',
-          year: String(year)
-        });
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    const data = await response.json();
+
+    let list = [];
+    if (data && data[1]) {
+      for (let item of data[1]) {
+        // กรองเอาเฉพาะข้อมูลที่มีตัวเลข และไม่ใช่ชื่อภูมิภาค (Aggregates)
+        if (item.value !== null && item.countryiso3code && !item.country.value.includes('&')) {
+          list.push({
+            country: item.country.value,
+            countryCode: item.countryiso3code,
+            value: parseFloat(item.value.toFixed(1)),
+            displayValue: item.value.toFixed(1) + '%',
+            year: String(year)
+          });
+        }
       }
     }
+    return list;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn(`[indicatorRoutes] Warning: World Bank API ช้าหรือไม่ตอบสนอง (${year}):`, err.message);
+    return [];
   }
-  return list;
 }
 
 // Route: GET /api/indicator-data

@@ -210,17 +210,32 @@ function renderComparisonList(pageType) {
   });
 }
 
+// ฟังก์ชันตรวจจับว่าปัจจุบันอยู่หน้าไหน
+function detectCurrentIndicatorPage() {
+  const path = window.location.pathname.toLowerCase();
+  const title = document.title.toLowerCase();
+  const headerValue = document.querySelector('.data-header .col-value')?.textContent.toLowerCase() || '';
+
+  if (path.includes('gdp') || title.includes('gdp') || headerValue.includes('gdp')) {
+    return 'gdp';
+  }
+  if (path.includes('inflation') || title.includes('inflation') || headerValue.includes('inflation')) {
+    return 'inflation';
+  }
+  if (path.includes('unemployment') || title.includes('unemployment') || headerValue.includes('unemployment')) {
+    return 'unemployment';
+  }
+  return null;
+}
+
 // ตรวจสอบและเริ่มต้นทำงานเมื่อโหลดหน้าเว็บ
 document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname;
-  if (path.includes('gdp.html')) {
-    initIndicatorPage('gdp');
-  } else if (path.includes('inflation.html')) {
-    initIndicatorPage('inflation');
-  } else if (path.includes('unemployment.html')) {
-    initIndicatorPage('unemployment');
+  const page = detectCurrentIndicatorPage();
+  if (page) {
+    initIndicatorPage(page);
   }
 });
 
 // ให้ window สามารถเข้าถึงฟังก์ชันนี้ได้ เพื่อรองรับตอนกดเปลี่ยนหน้าผ่าน SPA
 window.initIndicatorPage = initIndicatorPage;
+window.detectCurrentIndicatorPage = detectCurrentIndicatorPage;
