@@ -1,143 +1,44 @@
+// public/script.js
+// ดึงข้อมูลจาก API หลังบ้านมาแสดงผลในการ์ด 3 ใบ
+
+// ดึงข้อมูลทันทีที่โครงสร้างหน้าเว็บพร้อม (ไม่ต้องรอโหลดรูปภาพ)
 document.addEventListener('DOMContentLoaded', () => {
-
-    // --- 1. ???? Sidebar ???????????????????????? & ??????????????????????? ---
-    const sidebarNav = document.querySelector('.sidebar-nav');
-    const navLinks = document.querySelectorAll('.nav-item');
-    const mainContent = document.querySelector('.main-content');
-    
-    // ??????????????????????????
-    const floatingActive = document.createElement('div');
-    floatingActive.className = 'floating-active';
-    sidebarNav.appendChild(floatingActive);
-
-    // ????????????????????????????????????????
-    const updateFloatingActive = (targetEl) => {
-        if (!targetEl) return;
-        const rect = targetEl.getBoundingClientRect();
-        const navRect = sidebarNav.getBoundingClientRect();
-        floatingActive.style.top = (rect.top - navRect.top) + 'px';
-        floatingActive.style.height = rect.height + 'px';
-    };
-
-    // ????????????????????????????????????????? active ????????
-    const initialActive = document.querySelector('.nav-item.active');
-    // ??????????????? render ???? ???????????????????????????
-    setTimeout(() => {
-        if(initialActive) updateFloatingActive(initialActive);
-    }, 50);
-
-    window.addEventListener('resize', () => {
-        const active = document.querySelector('.nav-item.active');
-        if(active) updateFloatingActive(active);
-    });
-
-    // --- ???????????????????????? ---
-    navLinks.forEach(link => {
-        link.addEventListener('click', async (e) => {
-            const url = link.getAttribute('href');
-            // ??????????????????????????
-            if (url && !link.classList.contains('active')) {
-                e.preventDefault(); // ???????????????????????????
-                
-                // 1. ????????????????? Sidebar ?????
-                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-                link.classList.add('active');
-                updateFloatingActive(link);
-
-                // 2. ???????????????? ?????? (Fade-out)
-                mainContent.classList.add('fade-out');
-                mainContent.classList.remove('fade-in');
-
-                // 3. ??????????? HTML ?????????????
-                try {
-                    const response = await fetch(url);
-                    const html = await response.text();
-                    
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newMain = doc.querySelector('.main-content');
-
-                    // ?????????????? Fade-out ?? (?????? 300ms ???????????? CSS)
-                    setTimeout(() => {
-                        // ???????????????????????
-                        mainContent.innerHTML = newMain.innerHTML;
-                        mainContent.className = newMain.className; 
-                        
-                        // ????????????????? HOME ???????????????? Carousel ????
-                        initCarousel();
-
-                        // ????????????????? (Fade-in)
-                        mainContent.classList.remove('fade-out');
-                        mainContent.classList.add('fade-in');
-                        
-                        // ?????? URL ????????????????????
-                        history.pushState({}, '', url);
-                    }, 300);
-
-                } catch (err) {
-                    console.error("Error loading page:", err);
-                    window.location.href = url; // ????????????? ?????????????????????????
-                }
-            } else if (url && link.classList.contains('active')) {
-                e.preventDefault(); // ?????????? ?????????????
-            }
-        });
-    });
-
-    // ???????????????????????? (Back) ??????????????
-    window.addEventListener('popstate', () => {
-        window.location.reload(); 
-    });
-
-
-    // --- 2. ???? Carousel ?????????????????? (?????????? HOME) ---
-    let autoPlayInterval;
-    const initCarousel = () => {
-        const track = document.getElementById('carouselTrack');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        
-        // ????????????????????????
-        if(autoPlayInterval) clearInterval(autoPlayInterval);
-
-        if (track && prevBtn && nextBtn) {
-            let currentIndex = 0;
-            const slides = track.querySelectorAll('.carousel-slide');
-            const totalSlides = slides.length;
-
-            if(totalSlides > 0) slides[currentIndex].classList.add('active');
-
-            const updateCarousel = () => {
-                slides.forEach(slide => slide.classList.remove('active'));
-                if(slides[currentIndex]) slides[currentIndex].classList.add('active');
-            };
-
-            const nextSlide = () => {
-                currentIndex = (currentIndex < totalSlides - 1) ? currentIndex + 1 : 0;
-                updateCarousel();
-            };
-
-            autoPlayInterval = setInterval(nextSlide, 5000);
-
-            const resetAutoPlay = () => {
-                clearInterval(autoPlayInterval);
-                autoPlayInterval = setInterval(nextSlide, 5000);
-            };
-
-            prevBtn.addEventListener('click', () => {
-                currentIndex = (currentIndex > 0) ? currentIndex - 1 : totalSlides - 1;
-                updateCarousel();
-                resetAutoPlay();
-            });
-
-            nextBtn.addEventListener('click', () => {
-                nextSlide();
-                resetAutoPlay();
-            });
-        }
-    };
-
-    // ???????????????????????
-    initCarousel();
-
+  loadDashboard();
 });
+
+function loadDashboard() {
+  fetch('/api/dashboard/top5')
+    .then(res => res.json())
+    .then(result => {
+      const data = result.data;
+      if (data) {
+        renderCard('card-gdp', 'GDP TOP 5 (2025)', data.gdp);
+        renderCard('card-inflation', 'INFLATION TOP 5 (2025)', data.inflation);
+        renderCard('card-unemployment', 'UNEMPLOYMENT TOP 5 (2025)', data.unemployment);
+      }
+    })
+    .catch(err => {
+      console.error('โหลดข้อมูลไม่สำเร็จ:', err);
+    });
+}
+
+// ฟังก์ชันสร้างแถวข้อมูลใส่ในการ์ด
+function renderCard(cardId, title, items) {
+  const card = document.getElementById(cardId);
+  if (!card || !items) return;
+
+  // ใส่หัวข้อการ์ด
+  card.innerHTML = `<h2 class="card-title">${title}</h2>`;
+
+  // วนลูปสร้างแต่ละแถว
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const row = document.createElement('div');
+    row.className = 'card-row';
+    row.innerHTML = `
+      <span class="country">${item.country}</span>
+      <span class="value ${item.colorClass}">${item.displayValue}</span>
+    `;
+    card.appendChild(row);
+  }
+}
