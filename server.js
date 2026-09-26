@@ -64,22 +64,43 @@ function bubbleSort(arr) {
 }
 
 // ==========================================
-// 3. กำหนดเงื่อนไขสีตัวเลข (ดี = เขียว / แย่ = แดง)
+// 3. กำหนดเงื่อนไขสีตัวเลขและ Icon ขึ้น/ลง (ดี = เขียว / แย่ = แดง)
 // ==========================================
-function getColor(type, value) {
+function getIndicatorStatus(type, value) {
   if (type === 'gdp') {
-    // GDP: โตเกิน 0% คือดี (เขียว), ติดลบคือแย่ (แดง)
-    return value > 0 ? 'green' : 'red';
+    // GDP: โตเกิน 0% คือดี (เขียว, ▲), ติดลบคือแย่ (แดง, ▼)
+    const isGood = value > 0;
+    return {
+      colorClass: isGood ? 'green' : 'red',
+      icon: isGood ? '▲' : '▼'
+    };
   }
+
   if (type === 'inflation') {
-    // เงินเฟ้อ: 1% - 4% ถือว่าปกติ (เขียว), ถ้าสูงเกินไปหรือติดลบ (แดง)
-    return value >= 1.0 && value <= 4.0 ? 'green' : 'red';
+    // เงินเฟ้อ: 1% - 4% ถือว่าปกติ (เขียว, ▲), สูงเกินไปของแพง (แดง, ▲), ติดลบเงินฝืด (แดง, ▼)
+    if (value >= 1.0 && value <= 4.0) {
+      return { colorClass: 'green', icon: '▲' };
+    } else if (value > 4.0) {
+      return { colorClass: 'red', icon: '▲' };
+    } else {
+      return { colorClass: 'red', icon: '▼' };
+    }
   }
+
   if (type === 'unemployment') {
-    // ว่างงาน: ต่ำกว่า 5% ถือว่าดี (เขียว), 5% ขึ้นไปคือคนตกงานเยอะ (แดง)
-    return value < 5.0 ? 'green' : 'red';
+    // ว่างงาน: ต่ำกว่า 5% คือดี คนตกงานน้อย (เขียว, ▼), 5% ขึ้นไปคือแย่ คนตกงานเยอะ (แดง, ▲)
+    const isGood = value < 5.0;
+    return {
+      colorClass: isGood ? 'green' : 'red',
+      icon: isGood ? '▼' : '▲'
+    };
   }
-  return 'green';
+
+  return { colorClass: 'green', icon: '▲' };
+}
+
+function getColor(type, value) {
+  return getIndicatorStatus(type, value).colorClass;
 }
 
 // ข้อมูลสำรองกรณีเน็ตหลุดหรือไม่สามารถเชื่อมต่อ API ได้ (ปี 2025)
@@ -108,11 +129,10 @@ const fallbackData = {
 };
 
 // ==========================================
-// 4. ฟังก์ชันดึงข้อมูลจาก World Bank API (ปี 2025)
+// 4. ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่เลือก
 // ==========================================
-async function fetchIndicator(indicatorCode) {
-  // ล็อคปี 2025 ตามที่ผู้ใช้ต้องการ
-  const url = `https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=2025&format=json&per_page=300`;
+async function fetchIndicator(indicatorCode, year = '2025') {
+  const url = `https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`;
   const response = await fetch(url);
   const data = await response.json();
 
@@ -125,7 +145,7 @@ async function fetchIndicator(indicatorCode) {
           country: item.country.value,
           value: parseFloat(item.value.toFixed(1)),
           displayValue: item.value.toFixed(1) + '%',
-          year: '2025'
+          year: String(year)
         });
       }
     }
@@ -191,6 +211,10 @@ app.get('/api/dashboard/top5', async (req, res) => {
     });
   }
 });
+
+// นำเข้า Route จัดการข้อมูล Indicator (แยกไฟล์ไว้เพื่อความเป็นระเบียบ)
+const indicatorRoutes = require('./routes/indicatorRoutes');
+app.use('/api', indicatorRoutes);
 
 // ส่ง index.html
 app.get('*', (req, res) => {

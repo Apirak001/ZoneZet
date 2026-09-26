@@ -64,10 +64,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             mainContent.className = newMain.className; 
                         }
                         
-                        // รีสตาร์ทสคริปต์ต่างๆ หากเปลี่ยนกลับมาหน้า HOME
+                        // รีสตาร์ทสคริปต์ต่างๆ ตามหน้าที่เปิด
                         if(url === 'index.html' || url === '' || url === '/' || url.includes('index.html')) {
                             initCarousel();
                             loadDashboard();
+                        } else if (url.includes('gdp.html')) {
+                            if (window.initIndicatorPage) window.initIndicatorPage('gdp');
+                        } else if (url.includes('inflation.html')) {
+                            if (window.initIndicatorPage) window.initIndicatorPage('inflation');
+                        } else if (url.includes('unemployment.html')) {
+                            if (window.initIndicatorPage) window.initIndicatorPage('unemployment');
                         }
 
                         // เฟดเข้า
@@ -187,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // เรียกใช้ทั้งสองระบบเมื่อโหลดเว็บครั้งแรก
+    // เริ่มต้นทำงานหน้า Home (หากเป็นหน้าแรก)
     initCarousel();
     loadDashboard();
 

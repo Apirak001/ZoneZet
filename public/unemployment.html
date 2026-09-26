@@ -44,7 +44,14 @@
             <div class="data-layout">
                 <div class="main-panel">
                     <div class="search-bar">
-                        <select class="search-select"><option>select the year</option></select>
+                        <select class="search-select">
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
                         <input class="search-input" type="text" placeholder="search for a country...">
                         <button type="button" class="search-btn">
                             <img class="search-icon" src="img/search.png" alt="Search">
@@ -58,35 +65,21 @@
                     </div>
                     <div class="data-table">
                         <div class="data-row">
-                            <div class="col-no">1</div>
-                            <div class="col-country">Thailand</div>
-                            <div class="col-value green">▲ 15%</div>
-                            <div class="col-action"><button class="btn-add">ADD</button></div>
-                        </div>
-                        <div class="data-row">
-                            <div class="col-no">2</div>
-                            <div class="col-country">Canada</div>
-                            <div class="col-value green">▲ 2%</div>
-                            <div class="col-action"><button class="btn-add">ADD</button></div>
+                            <div class="col-country" style="opacity: 0.6;">กำลังโหลดข้อมูล...</div>
                         </div>
                     </div>
                 </div>
                 <div class="comparison-panel">
                     <div class="comp-title">COMPARISON AREA</div>
                     <div class="comp-list">
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
-                        <div class="comp-item">Thailand</div>
+                        <!-- รายการที่ถูก ADD จะแสดงที่นี่ -->
                     </div>
                     <button class="btn-compare">COMPARISON</button>
                 </div>
             </div>
         </main>
     </div>
-<script src="script.js"></script></body>
+    <script src="script.js"></script>
+    <script src="indicator.js"></script>
+</body>
 </html>
