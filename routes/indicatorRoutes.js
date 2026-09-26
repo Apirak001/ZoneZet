@@ -42,15 +42,10 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'inflation') {
-    // เงินเฟ้อ: 1% - 4% = ดี (เขียว, up), > 4% = แย่ เงินเฟ้อพุ่ง (แดง, up), < 1% = แย่ เงินฝืด (แดง, down)
-    if (value >= 1.0 && value <= 4.0) {
-      return { colorClass: 'green', trend: 'up' };
-    } else if (value > 4.0) {
-      return { colorClass: 'red', trend: 'up' };
-    } else {
-      return { colorClass: 'red', trend: 'down' };
+      const trend = value >= 0 ? 'up' : 'down';
+      const colorClass = value <= 4.0 ? 'green' : 'red';
+      return { colorClass, trend };
     }
-  }
 
   if (type === 'unemployment') {
     // ว่างงาน: < 5% = ดี คนว่างงานต่ำ (เขียว, down), >= 5% = แย่ คนว่างงานสูง (แดง, up)

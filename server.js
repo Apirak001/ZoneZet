@@ -77,14 +77,9 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'inflation') {
-    // เงินเฟ้อ: 1% - 4% ถือว่าปกติ (เขียว, ▲), สูงเกินไปของแพง (แดง, ▲), ติดลบเงินฝืด (แดง, ▼)
-    if (value >= 1.0 && value <= 4.0) {
-      return { colorClass: 'green', icon: '▲' };
-    } else if (value > 4.0) {
-      return { colorClass: 'red', icon: '▲' };
-    } else {
-      return { colorClass: 'red', icon: '▼' };
-    }
+    const trend = value >= 0 ? 'up' : 'down';
+    const colorClass = value <= 4.0 ? 'green' : 'red';
+    return { colorClass, trend, icon: trend === 'up' ? '📈' : '📉' };
   }
 
   if (type === 'unemployment') {
@@ -189,7 +184,8 @@ app.get('/api/dashboard/top5', async (req, res) => {
       // ตัดเอา 5 อันดับแรก พร้อมใส่สี green / red
       const top5 = sorted.slice(0, 5).map(item => ({
         ...item,
-        colorClass: getColor(task.type, item.value)
+        colorClass: getIndicatorStatus(task.type, item.value).colorClass,
+        trend: getIndicatorStatus(task.type, item.value).trend
       }));
 
       results[task.type] = top5;

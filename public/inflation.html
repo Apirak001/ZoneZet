@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ZoneZet Economic Dashboard - Inflation</title>
+    <title>ZoneZet</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="img/logo.png" type="image/png">
 </head>
 <body>
     <div class="dashboard">
@@ -15,6 +16,7 @@
                 <img class="logo-text" src="img/ZoneZet.png" alt="ZoneZet">
             </div>
             <nav class="sidebar-nav">
+                <div class="floating-active"></div>
                 <a class="nav-item" href="index.html">
                     <img class="nav-icon" src="img/Home_Page.png" alt="">
                     <span>HOME</span>
@@ -44,14 +46,21 @@
             <div class="data-layout">
                 <div class="main-panel">
                     <div class="search-bar">
-                        <select class="search-select">
-                            <option value="2025" selected>2025</option>
-                            <option value="2024">2024</option>
-                            <option value="2023">2023</option>
-                            <option value="2022">2022</option>
-                            <option value="2021">2021</option>
-                            <option value="2020">2020</option>
-                        </select>
+                                                                        <div class="custom-select-wrapper">
+                            <div class="custom-select-trigger">
+                                <span class="custom-select-text">2025</span>
+                                <div class="custom-select-arrow"></div>
+                            </div>
+                            <div class="custom-options">
+                                <div class="custom-option selected" data-value="2025">2025</div>
+                                <div class="custom-option" data-value="2024">2024</div>
+                                <div class="custom-option" data-value="2023">2023</div>
+                                <div class="custom-option" data-value="2022">2022</div>
+                                <div class="custom-option" data-value="2021">2021</div>
+                                <div class="custom-option" data-value="2020">2020</div>
+                            </div>
+                            <input type="hidden" class="search-select" value="2025">
+                        </div>
                         <input class="search-input" type="text" placeholder="search for a country...">
                         <button type="button" class="search-btn">
                             <img class="search-icon" src="img/search.png" alt="Search">
@@ -74,7 +83,15 @@
                     <div class="comp-list">
                         <!-- รายการที่ถูก ADD จะแสดงที่นี่ -->
                     </div>
-                    <button class="btn-compare">COMPARISON</button>
+                                        <button class="btn-compare">
+                        <svg class="btn-compare-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                            <polyline points="2 12 6 8 12 14 22 4"></polyline>
+                        </svg>
+                        INFLATION
+                    </button>
                 </div>
             </div>
         </main>
@@ -83,3 +100,11 @@
     <script src="indicator.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
