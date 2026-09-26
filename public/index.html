@@ -2,153 +2,89 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8"> <!-- กำหนดการเข้ารหัสตัวอักษรเป็น UTF-8 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- ทำให้รองรับหน้าจอมือถือ -->
-    <title>ZoneZet Economic Dashboard</title> <!-- ชื่อแท็บบนเบราว์เซอร์ -->
-    <link rel="stylesheet" href="style.css"> <!-- เชื่อมไฟล์ CSS สำหรับตกแต่งหน้าเว็บ -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ZoneZet Economic Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <!-- ========== กล่องหลักของ Dashboard ========== -->
     <div class="dashboard">
 
-        <!-- ========== แถบด้านข้าง (Sidebar) ========== -->
+        <!-- แถบด้านข้าง (Sidebar) -->
         <aside class="sidebar">
-
-            <!-- โลโก้ ZoneZet: วงกลม + ชื่อแอป -->
             <div class="sidebar-logo">
-                <div class="logo-circle"></div> <!-- วงกลมสีเทาแทนรูปโลโก้ -->
-                <span class="logo-text">ZoneZet</span> <!-- ชื่อแอป -->
+                <!-- 🔧 แก้ src เป็นรูปโลโก้ของคุณ เช่น src="img/logo.png" -->
+                <img class="logo-circle" src="img/logo.png" alt="ZoneZet Logo">
+                <!-- 🔧 แก้ src เป็นรูปชื่อโลโก้ของคุณ -->
+                <img class="logo-text" src="img/ZoneZet.png" alt="ZoneZet">
             </div>
-
-            <!-- เมนูนำทาง -->
             <nav class="sidebar-nav">
-                <!-- ปุ่ม HOME (active = กำลังเลือกอยู่ จะมีพื้นหลัง gradient ม่วง) -->
                 <button class="nav-item active" type="button">
-                    <span class="nav-icon">🏠</span>
+                    <!-- 🔧 แก้ src เป็นไอคอนของคุณ -->
+                    <img class="nav-icon" src="img/Home_Page.png" alt="">
                     <span>HOME</span>
                 </button>
-                <!-- ปุ่ม GDP -->
                 <button class="nav-item" type="button">
-                    <span class="nav-icon">🏛</span>
+                    <img class="nav-icon" src="img/Combo_Chart.png" alt="">
                     <span>GDP</span>
                 </button>
-                <!-- ปุ่ม INFLATION -->
                 <button class="nav-item" type="button">
-                    <span class="nav-icon">📈</span>
+                    <img class="nav-icon" src="img/Profit.png" alt="">
                     <span>INFLATION</span>
                 </button>
-                <!-- ปุ่ม UNEMPLOYMENT -->
                 <button class="nav-item" type="button">
-                    <span class="nav-icon">👥</span>
+                    <img class="nav-icon" src="img/Sugar_Free.png" alt="">
                     <span>UNEMPLOYMENT</span>
                 </button>
-                <!-- ช่องว่างดัน RECORD ไปอยู่ล่างสุดของ sidebar -->
                 <div class="nav-spacer"></div>
-                <!-- ปุ่ม RECORD -->
                 <button class="nav-item" type="button">
-                    <span class="nav-icon">📋</span>
+                    <img class="nav-icon" src="img/General_Ledger.png" alt="">
                     <span>RECORD</span>
                 </button>
             </nav>
         </aside>
 
-        <!-- ========== เนื้อหาหลัก (Main Content) ========== -->
+        <!-- เนื้อหาหลัก -->
         <main class="main-content">
 
-            <!-- ========== ส่วน Carousel / แสดงรูปภาพ ========== -->
+            <!-- Carousel -->
             <section class="carousel">
-                <!-- ปุ่มลูกศรซ้าย (ย้อนกลับ) -->
-                <button class="carousel-arrow carousel-prev" type="button" aria-label="Previous">&#8249;</button>
-                <!-- พื้นที่แสดงเนื้อหา/รูปภาพ carousel -->
-                <div class="carousel-content">
-                    <!-- สไลด์รูปภาพจะอยู่ตรงนี้ -->
-                </div>
-                <!-- ปุ่มลูกศรขวา (ถัดไป) -->
-                <button class="carousel-arrow carousel-next" type="button" aria-label="Next">&#8250;</button>
+                <button class="carousel-arrow" type="button">
+                    <img src="img/Arorow_l.png" alt="Previous">
+                </button>
+                <div class="carousel-content"></div>
+                <button class="carousel-arrow" type="button">
+                    <img src="img/Arorow_r.png" alt="Next">
+                </button>
             </section>
 
-            <!-- ========== ส่วนการ์ดข้อมูล 3 ใบ ========== -->
+            <!-- การ์ด 3 ใบ -->
             <section class="cards">
-
-                <!-- ===== การ์ด GDP TOP 5 ===== -->
                 <div class="card">
-                    <h2 class="card-title">GDP TOP 5</h2> <!-- หัวข้อการ์ด -->
-                    <!-- แถวข้อมูลแต่ละประเทศ: ชื่อประเทศ + ค่าตัวเลข (สีเขียว) -->
-                    <div class="card-row">
-                        <span class="country">Amarica</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">China</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Thai</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Mexico</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Jpan</span>
-                        <span class="value green">15%</span>
-                    </div>
+                    <h2 class="card-title">GDP TOP 5</h2>
+                    <div class="card-row"><span class="country">Amarica</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">China</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Thai</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Mexico</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Jpan</span><span class="value green">15%</span></div>
                 </div>
-
-                <!-- ===== การ์ด INFLATION TOP 5 ===== -->
                 <div class="card">
-                    <h2 class="card-title">INFLATION TOP 5</h2> <!-- หัวข้อการ์ด -->
-                    <!-- แถวข้อมูลแต่ละประเทศ: ชื่อประเทศ + ค่าตัวเลข (สีเขียว) -->
-                    <div class="card-row">
-                        <span class="country">Amarica</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">China</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Thai</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Mexico</span>
-                        <span class="value green">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Jpan</span>
-                        <span class="value green">15%</span>
-                    </div>
+                    <h2 class="card-title">INFLATION TOP 5</h2>
+                    <div class="card-row"><span class="country">Amarica</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">China</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Thai</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Mexico</span><span class="value green">15%</span></div>
+                    <div class="card-row"><span class="country">Jpan</span><span class="value green">15%</span></div>
                 </div>
-
-                <!-- ===== การ์ด UNEMPLOYMENT TOP 5 ===== -->
                 <div class="card">
-                    <h2 class="card-title">UNEMPLOYMENT TOP 5</h2> <!-- หัวข้อการ์ด -->
-                    <!-- แถวข้อมูลแต่ละประเทศ: ชื่อประเทศ + ค่าตัวเลข (สีแดง) -->
-                    <div class="card-row">
-                        <span class="country">Amarica</span>
-                        <span class="value red">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">China</span>
-                        <span class="value red">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Thai</span>
-                        <span class="value red">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Mexico</span>
-                        <span class="value red">15%</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="country">Jpan</span>
-                        <span class="value red">15%</span>
-                    </div>
+                    <h2 class="card-title">UNEMPLOYMENT TOP 5</h2>
+                    <div class="card-row"><span class="country">Amarica</span><span class="value red">15%</span></div>
+                    <div class="card-row"><span class="country">China</span><span class="value red">15%</span></div>
+                    <div class="card-row"><span class="country">Thai</span><span class="value red">15%</span></div>
+                    <div class="card-row"><span class="country">Mexico</span><span class="value red">15%</span></div>
+                    <div class="card-row"><span class="country">Jpan</span><span class="value red">15%</span></div>
                 </div>
-
             </section>
         </main>
     </div>
