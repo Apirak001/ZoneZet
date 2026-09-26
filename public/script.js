@@ -1,9 +1,10 @@
 // public/script.js
 // ดึงข้อมูลจาก API หลังบ้านมาแสดงผลในการ์ด 3 ใบ
 
-window.onload = function() {
+// ดึงข้อมูลทันทีที่โครงสร้างหน้าเว็บพร้อม (ไม่ต้องรอโหลดรูปภาพ)
+document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
-};
+});
 
 function loadDashboard() {
   fetch('/api/dashboard/top5')

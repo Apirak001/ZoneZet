@@ -133,10 +133,22 @@ async function fetchIndicator(indicatorCode) {
   return list;
 }
 
+// ตัวแปรแคชใน Memory (ตามที่อาจารย์แนะนำในข้อควรรู้เรื่อง Vercel)
+// ช่วยให้กดรีเฟรชแล้วข้อมูลแสดงทันทีใน 1ms ไม่ต้องรอยิง World Bank ซ้ำ
+let cachedTop5 = null;
+
 // ==========================================
 // 5. REST API สำหรับส่งข้อมูล TOP 5 ให้หน้าบ้าน
 // ==========================================
 app.get('/api/dashboard/top5', async (req, res) => {
+  // ถ้าเคยดึงมาแล้วและมีแคชอยู่ ให้ส่งกลับทันที ไม่ต้องรอนาน
+  if (cachedTop5) {
+    return res.json({
+      status: 'success',
+      data: cachedTop5
+    });
+  }
+
   try {
     // นำ Queue มาใช้จัดคิวการดึงข้อมูล 3 ตัวตามลำดับ (FIFO)
     const requestQueue = new Queue();
@@ -162,6 +174,9 @@ app.get('/api/dashboard/top5', async (req, res) => {
 
       results[task.type] = top5;
     }
+
+    // เก็บผลลัพธ์ไว้ในตัวแปรแคช
+    cachedTop5 = results;
 
     res.json({
       status: 'success',
