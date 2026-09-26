@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ZoneZet Economic Dashboard - Inflation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- แถบด้านข้าง (Sidebar) -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <img class="logo-circle" src="img/logo.png" alt="ZoneZet Logo">
+                <img class="logo-text" src="img/ZoneZet.png" alt="ZoneZet">
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item" href="index.html">
+                    <img class="nav-icon" src="img/Home_Page.png" alt="">
+                    <span>HOME</span>
+                </a>
+                <a class="nav-item" href="gdp.html">
+                    <img class="nav-icon" src="img/Combo_Chart.png" alt="">
+                    <span>GDP</span>
+                </a>
+                <a class="nav-item active" href="inflation.html">
+                    <img class="nav-icon" src="img/Profit.png" alt="">
+                    <span>INFLATION</span>
+                </a>
+                <a class="nav-item" href="unemployment.html">
+                    <img class="nav-icon" src="img/Sugar_Free.png" alt="">
+                    <span>UNEMPLOYMENT</span>
+                </a>
+                <div class="nav-spacer"></div>
+                <a class="nav-item" href="record.html">
+                    <img class="nav-icon" src="img/General_Ledger.png" alt="">
+                    <span>RECORD</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- เนื้อหาหลัก -->
+        <main class="main-content">
+            <div class="data-layout">
+                <div class="main-panel">
+                    <div class="search-bar">
+                        <select class="search-select"><option>select the year</option></select>
+                        <input class="search-input" type="text" placeholder="search for a country...">
+                        <button type="button" class="search-btn">
+                            <img class="search-icon" src="img/search.png" alt="Search">
+                        </button>
+                    </div>
+                    <div class="data-header">
+                        <div class="col-no">NO.</div>
+                        <div class="col-country">COUNTRY</div>
+                        <div class="col-value">INFLATION</div>
+                        <div class="col-action">COMPARE</div>
+                    </div>
+                    <div class="data-table">
+                        <div class="data-row">
+                            <div class="col-no">1</div>
+                            <div class="col-country">Thailand</div>
+                            <div class="col-value green">▲ 15%</div>
+                            <div class="col-action"><button class="btn-add">ADD</button></div>
+                        </div>
+                        <div class="data-row">
+                            <div class="col-no">2</div>
+                            <div class="col-country">Canada</div>
+                            <div class="col-value green">▲ 2%</div>
+                            <div class="col-action"><button class="btn-add">ADD</button></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comparison-panel">
+                    <div class="comp-title">COMPARISON AREA</div>
+                    <div class="comp-list">
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                        <div class="comp-item">Thailand</div>
+                    </div>
+                    <button class="btn-compare">COMPARISON</button>
+                </div>
+            </div>
+        </main>
+    </div>
+<script src="script.js"></script></body>
+</html>
