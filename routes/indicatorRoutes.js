@@ -13,6 +13,27 @@ const INDICATOR_CODES = {
 };
 
 // ตัวแปร In-Memory Cache เก็บข้อมูลแยกตามประเภทและปี (เช่น gdp_2025)
+
+const countryMetaCache = {};
+async function loadCountryMeta() {
+  try {
+    const res = await fetch('https://api.worldbank.org/v2/country/all?format=json&per_page=300');
+    const data = await res.json();
+    if (data && data[1]) {
+      data[1].forEach(c => {
+        countryMetaCache[c.id] = {
+          iso2: (c.iso2Code || '').toLowerCase(),
+          region: c.region && c.region.value ? c.region.value : 'Unknown'
+        };
+      });
+    }
+    console.log('[indicatorRoutes] Loaded country metadata:', Object.keys(countryMetaCache).length, 'countries');
+  } catch (e) {
+    console.error("[indicatorRoutes] Failed to load country meta", e.message);
+  }
+}
+loadCountryMeta();
+
 const indicatorCache = {};
 
 // ฟังก์ชัน Bubble Sort สำหรับเรียงลำดับจากค่ามากไปน้อย
@@ -78,6 +99,8 @@ async function fetchIndicatorFromWorldBank(indicatorCode, year) {
           list.push({
             country: item.country.value,
             countryCode: item.countryiso3code,
+            iso2: countryMetaCache[item.countryiso3code]?.iso2 || (item.country.id ? item.country.id.toLowerCase() : ''),
+            region: countryMetaCache[item.countryiso3code]?.region || 'Unknown',
             value: parseFloat(item.value.toFixed(1)),
             displayValue: item.value.toFixed(1) + '%',
             year: String(year)
@@ -127,6 +150,8 @@ router.get('/indicator-data', async (req, res) => {
       return {
         no: index + 1,
         country: item.country,
+        iso2: item.iso2,
+        region: item.region,
         value: item.value,
         displayValue: item.displayValue,
         trend: status.trend,

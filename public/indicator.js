@@ -1,3 +1,14 @@
+
+// PRELOADER LOGIC
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const preloader = document.getElementById('global-preloader');
+    if (preloader) {
+      preloader.classList.add('hidden');
+      setTimeout(() => preloader.remove(), 600);
+    }
+  }, 3000);
+});
 // public/indicator.js
 // จัดการหน้า GDP, INFLATION, UNEMPLOYMENT
 // รองรับ: เลือกปี 2020-2025, ค้นหาประเทศ, แสดง Icon ลูกศร SVG สวยๆ, และระบบ COMPARISON AREA
@@ -20,7 +31,7 @@ function getTrendIcon(trend, colorClass) {
   if (trend === 'up') {
     // ลูกศรชี้ขึ้น (Upward Arrow) สไตล์โมเดิร์น
     return `
-      <svg class="trend-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="trend-icon up" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="19" x2="12" y2="5"></line>
         <polyline points="5 12 12 5 19 12"></polyline>
       </svg>
@@ -28,7 +39,7 @@ function getTrendIcon(trend, colorClass) {
   } else {
     // ลูกศรชี้ลง (Downward Arrow) สไตล์โมเดิร์น
     return `
-      <svg class="trend-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="trend-icon down" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"></line>
         <polyline points="19 12 12 19 5 12"></polyline>
       </svg>
@@ -94,12 +105,18 @@ function initIndicatorPage(pageType) {
     items.forEach((item, index) => {
       const row = document.createElement('div');
       row.className = 'data-row';
+      row.style.animation = 'fadeSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards';
+      row.style.animationDelay = `${index * 0.03}s`;
 
       const iconSvg = getTrendIcon(item.trend, item.colorClass);
 
       row.innerHTML = `
         <div class="col-no">${index + 1}</div>
-        <div class="col-country">${item.country}</div>
+        <div class="col-country">
+            <img src="https://flagcdn.com/${(item.iso2 || 'xx').toLowerCase()}.svg" alt="" class="country-flag" onerror="this.style.display='none'">
+            <span>${item.country}</span>
+          </div>
+          <div class="col-region">${item.region || 'Unknown'}</div>
         <div class="col-value ${item.colorClass}">
           ${iconSvg}
           <span>${item.displayValue}</span>
@@ -182,7 +199,7 @@ function addToComparison(pageType, item) {
 
   list.push(item);
   comparisonData[pageType] = list;
-  renderComparisonList(pageType);
+  renderComparisonList(pageType, true);
   showGlassAlert('เพิ่ม ' + item.country + ' เข้าสู่รายการเปรียบเทียบแล้ว!', 'success');
 }
 
@@ -190,6 +207,20 @@ function addToComparison(pageType, item) {
  * ลบประเทศออกจาก COMPARISON AREA
  */
 function removeFromComparison(pageType, index) {
+  const compList = document.querySelector('.comp-list');
+  if (compList) {
+    const items = compList.querySelectorAll('.comp-item');
+    if (items[index]) {
+      items[index].style.animation = 'fadeSlideOutRight 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+      setTimeout(() => {
+        const list = comparisonData[pageType] || [];
+        list.splice(index, 1);
+        comparisonData[pageType] = list;
+        renderComparisonList(pageType);
+      }, 250);
+      return;
+    }
+  }
   const list = comparisonData[pageType] || [];
   list.splice(index, 1);
   comparisonData[pageType] = list;
@@ -199,7 +230,7 @@ function removeFromComparison(pageType, index) {
 /**
  * เรนเดอร์การแสดงผลในกล่อง COMPARISON AREA
  */
-function renderComparisonList(pageType) {
+function renderComparisonList(pageType, justAdded = false) {
   const compList = document.querySelector('.comp-list');
   if (!compList) return;
 
@@ -238,8 +269,11 @@ function renderComparisonList(pageType) {
       removeFromComparison(pageType, index);
     });
 
-    compList.appendChild(compItem);
-  });
+      if (justAdded && index === list.length - 1) {
+        compItem.style.animation = 'fadeSlideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+      }
+      compList.appendChild(compItem);
+    });
 }
 
 
@@ -290,8 +324,8 @@ function startComparisonProcess(pageType) {
   const trendText = isUp ? 'GROWING' : 'DECLINING';
 
   const iconSvg = isUp ?
-    `<svg viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 17 12 11 6 17"></polyline><polyline points="18 9 12 3 6 9"></polyline></svg>` :
-    `<svg viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 7 12 13 18 7"></polyline><polyline points="6 15 12 21 18 15"></polyline></svg>`;
+    `<svg class="trend-icon up" viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 17 12 11 6 17"></polyline><polyline points="18 9 12 3 6 9"></polyline></svg>` :
+    `<svg class="trend-icon down" viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 7 12 13 18 7"></polyline><polyline points="6 15 12 21 18 15"></polyline></svg>`;
 
   let overlay = document.querySelector('.comparison-modal-overlay');
   if (!overlay) {
@@ -325,7 +359,23 @@ function startComparisonProcess(pageType) {
     const card = document.getElementById('compCard');
     if (card) card.style.transform = 'scale(1)';
     initCardDrag();
-  }, 10);
+      if (window.swipeHintTimer) clearInterval(window.swipeHintTimer);
+      window.swipeHintTimer = setInterval(() => {
+          const c = document.getElementById('compCard');
+          if (!c) {
+            clearInterval(window.swipeHintTimer);
+            return;
+          }
+          // Remove entrance animation so it doesn't snap back
+          c.style.animation = 'none';
+          void c.offsetWidth; // Trigger reflow
+          
+          c.classList.add('hint-anim');
+          setTimeout(() => {
+            if (c) c.classList.remove('hint-anim');
+          }, 2000);
+        }, 3000);
+    }, 10);
 }
 
 /**
@@ -494,6 +544,11 @@ window.initCardDrag = function() {
   let isDragging = false;
   
   const startDrag = (e) => {
+      if (window.swipeHintTimer) {
+        clearInterval(window.swipeHintTimer);
+        window.swipeHintTimer = null;
+      }
+      card.classList.remove('hint-anim');
     isDragging = true;
     startX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
     
@@ -560,6 +615,7 @@ window.saveProcessedRecord = function(pageType, item) {
     window.processedRecords[pageType].push(item);
   }
 };
+window.recordSelectedYears = { gdp: '2025', inflation: '2025', unemployment: '2025' };
 window.initRecordPage = function() {
     const layout = document.querySelector('.record-layout');
     if (!layout) return;
@@ -611,7 +667,8 @@ window.initRecordPage = function() {
         .record-panel-custom-body {
           flex: 1;
           overflow-y: auto;
-          padding: 5px 20px 15px 20px;
+          padding: 5px 0 15px 0;
+          overflow-x: hidden;
           display: flex;
           flex-direction: column;
         }
@@ -626,11 +683,17 @@ window.initRecordPage = function() {
           border-radius: 10px;
         }
         .record-custom-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            margin-bottom: 2px;
+          }
+        .record-custom-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .record-custom-item:last-child {
           border-bottom: none;
@@ -684,22 +747,27 @@ window.initRecordPage = function() {
     ];
     
     categories.forEach(cat => {
-      const items = window.processedRecords[cat.id] || [];
-      let rowsHtml = '';
-      if (items.length === 0) {
-        rowsHtml = '<div style="color: rgba(255,255,255,0.5); text-align: center; margin-top: 20px;">ยังไม่มีข้อมูลประมวลผล</div>';
-      } else {
-        items.forEach((item, index) => {
+        const allItems = window.processedRecords[cat.id] || [];
+        const currentYear = window.recordSelectedYears[cat.id] || '2025';
+        const items = allItems.filter(i => i.year === currentYear);
+          let rowsHtml = '';
+          if (items.length === 0) {
+          rowsHtml = '<div style="color: rgba(255,255,255,0.5); text-align: center; margin-top: 20px;">ไม่มีข้อมูลที่บันทึกไว้ในหน้านี้</div>';
+        } else {
+          let displayIndex = 0;
+          allItems.forEach((item, globalIndex) => {
+            if (item.year !== currentYear) return;
+            const index = displayIndex++;
           const iconSvg = getTrendIcon(item.trend, item.colorClass);
           rowsHtml += `
-            <div class="record-custom-item">
+            <div class="record-custom-item" style="animation: fadeSlideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; animation-delay: ${index * 0.04}s;">
               <div class="record-custom-country">${item.country}</div>
               <div class="record-custom-right">
                 <div class="record-custom-val ${item.colorClass}">
                   ${iconSvg}
                   ${item.displayValue}
                 </div>
-                <button class="btn-delete-custom" type="button" title="Delete" onclick="window.deleteRecordItem('${cat.id}', ${index})">
+                <button class="btn-delete-custom" type="button" title="Delete" onclick="window.deleteRecordItem('${cat.id}', ${globalIndex})">
                   <!-- รูปถังขยะ -->
                   <img src="img/Remove.png" alt="Delete">
                 </button>
@@ -713,17 +781,44 @@ window.initRecordPage = function() {
         <div class="record-panel-custom">
           <div class="record-panel-custom-header">
             <div class="record-panel-custom-title">${cat.title}</div>
-            <button class="btn-history-custom" type="button" title="History" onclick="window.undoDeleteRecord('${cat.id}')">
-              <!-- รูปนาฬิกา -->
-              <img src="img/Rollback.png" alt="History">
-            </button>
-          </div>
-          <div class="record-panel-custom-body">
+              <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="custom-select-wrapper record-year-select" style="min-width: 90px;" data-category="${cat.id}">
+                  <div class="custom-select-trigger" style="padding: 6px 12px; font-size: 14px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                    <span class="custom-select-text">${currentYear}</span>
+                    <div class="custom-select-arrow"></div>
+                  </div>
+                  <div class="custom-options" style="background: #2a2a2a; border-radius: 8px; overflow: hidden; margin-top: 4px;">
+                    ${['2025', '2024', '2023', '2022', '2021', '2020'].map(y => 
+                      `<div class="custom-option ${y === currentYear ? 'selected' : ''}" data-value="${y}">${y}</div>`
+                    ).join('')}
+                  </div>
+                  <input type="hidden" class="search-select record-year-input" value="${currentYear}">
+                </div>
+                <button class="btn-history-custom" type="button" title="History" onclick="window.undoDeleteRecord('${cat.id}')">
+                <img src="img/Rollback.png" alt="History">
+              </button>
+              </div> <!-- closes right flex container -->
+            </div> <!-- closes header -->
+            <div class="record-panel-custom-body">
             ${rowsHtml}
           </div>
         </div>
       `;
-    });
+      });
+      
+      // Initialize dropdowns and bind changes
+      if (typeof window.initCustomSelects === 'function') window.initCustomSelects();
+      
+      layout.querySelectorAll('.record-year-select').forEach(wrapper => {
+        const cat = wrapper.getAttribute('data-category');
+        const hiddenInput = wrapper.querySelector('.record-year-input');
+        if (hiddenInput) {
+          hiddenInput.addEventListener('change', (e) => {
+            window.recordSelectedYears[cat] = e.target.value;
+            window.initRecordPage();
+          });
+        }
+      });
   };
 
 // --- RECORD DELETE & UNDO LOGIC ---
@@ -757,3 +852,18 @@ window.undoDeleteRecord = function(type) {
   if (window.showGlassAlert) window.showGlassAlert('เรียกคืนข้อมูลสำเร็จ!', 'success');
   window.initRecordPage();
 };
+
+
+// --- KEYBOARD SWIPE SUPPORT ---
+if (!window.hasSwipeKeyboard) {
+  window.hasSwipeKeyboard = true;
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.querySelector('.comparison-modal-overlay');
+    if (!overlay) return;
+    if (e.key === 'ArrowLeft') {
+      if (window.triggerSwipe) window.triggerSwipe('left');
+    } else if (e.key === 'ArrowRight') {
+      if (window.triggerSwipe) window.triggerSwipe('right');
+    }
+  });
+}

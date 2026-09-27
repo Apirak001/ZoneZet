@@ -71,7 +71,8 @@ function getIndicatorStatus(type, value) {
     // GDP: โตเกิน 0% คือดี (เขียว, ▲), ติดลบคือแย่ (แดง, ▼)
     const isGood = value > 0;
     return {
-      colorClass: isGood ? 'green' : 'red',
+      trend: value >= 0 ? 'up' : 'down',
+        colorClass: isGood ? 'green' : 'red',
       icon: isGood ? '▲' : '▼'
     };
   }
@@ -86,7 +87,8 @@ function getIndicatorStatus(type, value) {
     // ว่างงาน: ต่ำกว่า 5% คือดี คนตกงานน้อย (เขียว, ▼), 5% ขึ้นไปคือแย่ คนตกงานเยอะ (แดง, ▲)
     const isGood = value < 5.0;
     return {
-      colorClass: isGood ? 'green' : 'red',
+      trend: value >= 0 ? 'up' : 'down',
+        colorClass: isGood ? 'green' : 'red',
       icon: isGood ? '▼' : '▲'
     };
   }

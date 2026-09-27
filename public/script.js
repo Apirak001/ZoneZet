@@ -1,3 +1,14 @@
+
+// PRELOADER LOGIC
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const preloader = document.getElementById('global-preloader');
+    if (preloader) {
+      preloader.classList.add('hidden');
+      setTimeout(() => preloader.remove(), 600);
+    }
+  }, 3000);
+});
 ﻿// public/script.js
 // ไฟล์นี้เป็นหัวใจหลักในการจัดการระบบหน้าเว็บ (Single Page Application - SPA) 
 // รวมถึงการทำงานของแบนเนอร์ภาพเลื่อน (Carousel) และการดึงข้อมูลแผงควบคุม (Dashboard)
@@ -196,7 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ฟังก์ชันวาดการ์ดแสดงผล 5 อันดับ (ใช้ร่วมกันทั้ง GDP, INFLATION, UNEMPLOYMENT)
-    const renderCard = (cardId, title, items) => {
+    const getTrendIcon = (trend, colorClass) => {
+    if (!trend) return '';
+    const strokeColor = colorClass === 'green' ? '#00ff2e' : '#ff383b';
+    if (trend === 'up') {
+      return `<svg class="trend-icon up" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+    } else {
+      return `<svg class="trend-icon down" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${strokeColor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`;
+    }
+  };
+
+  const renderCard = (cardId, title, items) => {
         const card = document.getElementById(cardId);
         if (!card || !items) return;
 
@@ -211,8 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // วาดชื่อประเทศ และค่าตัวเลข (พร้อมสีตามแนวโน้ม)
             row.innerHTML = `
-            <span class="country">${item.country}</span>
-            <span class="value ${item.colorClass || ''}">${item.displayValue}</span>
+            <span class="country" style="display: flex; align-items: center; gap: 8px;">
+              <img src="https://flagcdn.com/${(item.iso2 || 'xx').toLowerCase()}.svg" alt="" class="country-flag" onerror="this.style.display='none'">
+              ${item.country}
+            </span>
+            <span class="value ${item.colorClass || ''}" style="display: flex; align-items: center;">${getTrendIcon(item.trend, item.colorClass)}${item.displayValue}</span>
             `;
             card.appendChild(row); // แปะลงในการ์ด
         }
