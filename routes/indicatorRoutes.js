@@ -1,24 +1,165 @@
-// routes/indicatorRoutes.js
-// จัดการ API สำหรับดึงข้อมูลรายชื่อประเทศ (GDP, Inflation, Unemployment)
-// รองรับ: เลือกปี 2020-2025, ค้นหาประเทศ, และกรองกลุ่มภูมิภาค (Aggregates) ออกด้วย API ทางการของ World Bank
+/**
+ * ==============================================================
+ * Project: ZoneZet Economic Dashboard (Course 801201)
+ * File: routes/indicatorRoutes.js
+ * Description: จัดการ API สำหรับดึงข้อมูลตัวชี้วัดเศรษฐกิจรายประเทศ
+ *              - GDP Growth (รหัส NY.GDP.MKTP.KD.ZG)
+ *              - Inflation (รหัส FP.CPI.TOTL.ZG)
+ *              - Unemployment (รหัส SL.UEM.TOTL.ZS)
+ *              - รองรับการเลือกปี 2020 - 2025 และค้นหาชื่อประเทศ/ภูมิภาค
+ *              - กรองกลุ่มทวีป/ภูมิภาครวม (Aggregates เช่น South Asia, World) ออก
+ *              - เกลี่ยและจัดระเบียบชื่อภูมิภาคให้กระชับ ชัดเจน มีเพียง 1 ภูมิภาคต่อประเทศ
+ *              - เรียงลำดับข้อมูลด้วย Bubble Sort
+ *              - จัดเก็บ Cache ในหน่วยความจำเพื่อความรวดเร็ว
+ * ==============================================================
+ */
 
 const express = require('express');
 const router = express.Router();
 
-// รหัสตัวชี้วัดของ World Bank
+// ==========================================
+// 1. รหัสตัวชี้วัดทางการของ World Bank API
+// ==========================================
 const INDICATOR_CODES = {
-  gdp: 'NY.GDP.MKTP.KD.ZG',
-  inflation: 'FP.CPI.TOTL.ZG',
-  unemployment: 'SL.UEM.TOTL.ZS'
+  gdp: 'NY.GDP.MKTP.KD.ZG',           // อัตราการเติบโตทางเศรษฐกิจ (GDP annual %)
+  inflation: 'FP.CPI.TOTL.ZG',        // อัตราเงินเฟ้อ (Inflation, consumer prices annual %)
+  unemployment: 'SL.UEM.TOTL.ZS'      // อัตราการว่างงาน (Unemployment, total % of total labor force)
 };
 
 // ตัวแปร In-Memory Cache เก็บข้อมูลแยกตามประเภทและปี (เช่น gdp_2025)
 const indicatorCache = {};
 
-// เก็บ Cache รายชื่อประเทศและภูมิภาคทางการจาก World Bank
+// ตัวแปร Cache เก็บข้อมูลรายชื่อประเทศและภูมิภาคทางการจาก World Bank
 let countryMetadataCache = null;
 
-// ฟังก์ชันดึงรายชื่อประเทศและภูมิภาคจริงจาก World Bank (คัดกลุ่ม Aggregates ทิ้ง)
+// ==========================================
+// 2. รายชื่อกลุ่มรวบยอด (Aggregates) ที่ต้องคัดทิ้ง
+// ==========================================
+// ป้องกันไม่ให้กลุ่มภูมิภาค เช่น 'South Asia', 'World', 'Arab World' หลุดเข้ามาเป็นชื่อประเทศ
+const EXCLUDED_ENTITIES = new Set([
+  'South Asia',
+  'East Asia & Pacific',
+  'Europe & Central Asia',
+  'Latin America & Caribbean',
+  'Middle East & North Africa',
+  'Sub-Saharan Africa',
+  'North America',
+  'World',
+  'Arab World',
+  'Euro area',
+  'European Union',
+  'OECD members',
+  'Least developed countries: UN classification',
+  'Low & middle income',
+  'Middle income',
+  'High income',
+  'Low income',
+  'Lower middle income',
+  'Upper middle income',
+  'IDA & IBRD total',
+  'IBRD only',
+  'IDA total',
+  'IDA blend',
+  'IDA only',
+  'Fragile and conflict affected situations',
+  'Small states',
+  'Other small states',
+  'Pacific island small states',
+  'Caribbean small states',
+  'Central Europe and the Baltics',
+  'Heavily indebted poor countries (HIPC)',
+  'South Asia (IDA & IBRD)',
+  'South Asia (IFC classification)',
+  'South Asia (IDA-eligible countries)',
+  'Middle East, North Africa, Afghanistan & Pakistan',
+  'Africa Western and Central',
+  'Africa Eastern and Southern',
+  'SAS', 'EAS', 'ECS', 'LCN', 'MEA', 'SSF', 'NAC', 'WLD'
+]);
+
+// ==========================================
+// 3. ฟังก์ชันเกลี่ยและจัดระเบียบภูมิภาคให้มีเพียง 1 เดียวและตรงเป๊ะ
+// ==========================================
+/**
+ * แปลงชื่อกลุ่มภูมิภาคผสมของ World Bank ให้เป็นภูมิภาคเดี่ยวที่กระชับและเข้าใจง่าย
+ * @param {string} countryName - ชื่อประเทศ
+ * @param {string} rawRegion - ชื่อภูมิภาคดิบจาก World Bank API
+ * @returns {string} ชื่อภูมิภาคที่กระชับและถูกต้อง
+ */
+function normalizeRegion(countryName, rawRegion) {
+  if (!rawRegion) return 'Other';
+  const cName = (countryName || '').trim();
+  const region = rawRegion.trim();
+
+  // 1. แยกกลุ่ม Central Asia ออกจาก Europe (เดิม World Bank จัดเป็น 'Europe & Central Asia')
+  const centralAsianCountries = [
+    'Kazakhstan', 'Kyrgyz Republic', 'Kyrgyzstan', 'Tajikistan',
+    'Turkmenistan', 'Uzbekistan'
+  ];
+  if (centralAsianCountries.some(c => cName.includes(c))) {
+    return 'Central Asia';
+  }
+
+  // 2. แยกกลุ่ม North Africa ออกจาก Middle East (เดิม World Bank จัดรวมยาวมาก)
+  const northAfricanCountries = [
+    'Egypt, Arab Rep.', 'Egypt', 'Libya', 'Algeria', 'Morocco', 'Tunisia'
+  ];
+  if (northAfricanCountries.some(c => cName.includes(c))) {
+    return 'North Africa';
+  }
+
+  // 3. จัดการกลุ่ม Middle East, North Africa, Afghanistan & Pakistan
+  if (region.includes('Middle East') || region.includes('North Africa')) {
+    if (cName.includes('Afghanistan') || cName.includes('Pakistan')) return 'South Asia';
+    return 'Middle East';
+  }
+
+  // 4. กลุ่มยุโรป (Europe)
+  if (region.includes('Europe')) {
+    return 'Europe';
+  }
+
+  // 5. กลุ่มละตินอเมริกาและแคริบเบียน (Latin America & Caribbean)
+  if (region.includes('Latin America') || region.includes('Caribbean')) {
+    const caribbeanIslands = [
+      'Bahamas', 'Barbados', 'Cuba', 'Dominican Republic',
+      'Haiti', 'Jamaica', 'Trinidad and Tobago', 'Puerto Rico'
+    ];
+    if (caribbeanIslands.some(c => cName.includes(c))) return 'Caribbean';
+    return 'Latin America';
+  }
+
+  // 6. กลุ่มเอเชียตะวันออกและแปซิฟิก (East Asia & Pacific)
+  if (region.includes('East Asia') || region.includes('Pacific')) {
+    const oceaniaCountries = [
+      'Australia', 'New Zealand', 'Fiji', 'Papua New Guinea',
+      'Samoa', 'Tonga', 'Vanuatu', 'Solomon Islands'
+    ];
+    if (oceaniaCountries.some(c => cName.includes(c))) return 'Oceania';
+    return 'East Asia';
+  }
+
+  // 7. แอฟริกาใต้สะฮารา (Sub-Saharan Africa)
+  if (region.includes('Sub-Saharan') || region.includes('Africa')) {
+    return 'Sub-Saharan Africa';
+  }
+
+  // 8. เอเชียใต้ (South Asia) เช่น India, Sri Lanka, Bangladesh, Nepal
+  if (region.includes('South Asia')) {
+    return 'South Asia';
+  }
+
+  // 9. อเมริกาเหนือ (North America) เช่น United States, Canada
+  if (region.includes('North America')) {
+    return 'North America';
+  }
+
+  return region;
+}
+
+// ==========================================
+// 4. ฟังก์ชันดึงรายชื่อประเทศจริงจาก World Bank (ตัดกลุ่ม Aggregates ทิ้ง)
+// ==========================================
 async function getCountryMetadata() {
   if (countryMetadataCache) return countryMetadataCache;
 
@@ -29,13 +170,28 @@ async function getCountryMetadata() {
 
     if (data && data[1]) {
       data[1].forEach(c => {
-        // คัดกรองเฉพาะ "ประเทศจริง" เท่านั้น
-        // กลุ่มภูมิภาค/ทวีป เช่น Arab World, Caribbean small states, World จะมี region.value เป็น 'Aggregates'
-        if (c.region && c.region.value !== 'Aggregates') {
-          map[c.id] = {
-            name: c.name,
+        const name = c.name ? c.name.trim() : '';
+        const id = c.id ? c.id.trim() : '';
+        const capital = c.capitalCity ? c.capitalCity.trim() : '';
+        const regionVal = (c.region && c.region.value) ? c.region.value.trim() : '';
+
+        /**
+         * กรองเฉพาะ "ประเทศจริง" เท่านั้น:
+         * 1. region.value ต้องไม่เป็น 'Aggregates'
+         * 2. ต้องมีเมืองหลวง (capitalCity ไม่ว่าง) ซึ่ง World Bank ใส่เฉพาะประเทศจริง
+         * 3. ไม่อยู่ในรายชื่อ EXCLUDED_ENTITIES (เช่น 'South Asia', 'World')
+         */
+        if (
+          regionVal !== 'Aggregates' &&
+          regionVal !== '' &&
+          capital !== '' &&
+          !EXCLUDED_ENTITIES.has(name) &&
+          !EXCLUDED_ENTITIES.has(id)
+        ) {
+          map[id] = {
+            name: name,
             iso2: c.iso2Code ? c.iso2Code.toLowerCase() : '',
-            region: c.region.value.trim()
+            region: normalizeRegion(name, regionVal)
           };
         }
       });
@@ -49,7 +205,9 @@ async function getCountryMetadata() {
   }
 }
 
-// ฟังก์ชัน Bubble Sort สำหรับเรียงลำดับจากค่ามากไปน้อย
+// ==========================================
+// 5. อัลกอริทึม Bubble Sort (เรียงจากค่ามากไปหาน้อย)
+// ==========================================
 function bubbleSort(arr) {
   let result = [...arr];
   for (let i = 0; i < result.length; i++) {
@@ -64,7 +222,9 @@ function bubbleSort(arr) {
   return result;
 }
 
-// ฟังก์ชันประเมินสถานะตัวเลข (ดี = เขียว / แย่ = แดง) และทิศทาง (up / down)
+// ==========================================
+// 6. ฟังก์ชันประเมินสถานะตัวเลข (ดี = เขียว / แย่ = แดง) และทิศทางลูกศร
+// ==========================================
 function getIndicatorStatus(type, value) {
   if (type === 'gdp') {
     // GDP: > 0 = ดี (เขียว, up), <= 0 = แย่ (แดง, down)
@@ -76,7 +236,7 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'inflation') {
-    // เงินเฟ้อ: 1% - 4% = ดี (เขียว, up), > 4% = แย่ เงินเฟ้อพุ่ง (แดง, up), < 1% = แย่ เงินฝืด (แดง, down)
+    // เงินเฟ้อ: 1% - 4% = พอดีต่อเศรษฐกิจ (เขียว, up), > 4% = สินค้าแพง (แดง, up), < 1% = เงินฝืด (แดง, down)
     if (value >= 1.0 && value <= 4.0) {
       return { colorClass: 'green', trend: 'up' };
     } else if (value > 4.0) {
@@ -87,7 +247,7 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'unemployment') {
-    // ว่างงาน: < 5% = ดี คนว่างงานต่ำ (เขียว, down), >= 5% = แย่ คนว่างงานสูง (แดง, up)
+    // อัตราการว่างงาน: < 5% = ดี คนมีงานทำ (เขียว, down), >= 5% = แย่ คนตกงานสูง (แดง, up)
     const isGood = value < 5.0;
     return {
       colorClass: isGood ? 'green' : 'red',
@@ -98,7 +258,9 @@ function getIndicatorStatus(type, value) {
   return { colorClass: 'green', trend: 'up' };
 }
 
-// ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่ระบุ (เชื่อมข้อมูลภูมิภาคและตัด Aggregates ออก)
+// ==========================================
+// 7. ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่เลือก
+// ==========================================
 async function fetchIndicatorFromWorldBank(indicatorCode, year) {
   const [countryMap, rawResponse] = await Promise.all([
     getCountryMetadata(),
@@ -112,8 +274,8 @@ async function fetchIndicatorFromWorldBank(indicatorCode, year) {
     for (let item of rawResponse[1]) {
       const code = item.countryiso3code || (item.country && item.country.id);
 
-      // ต้องมีตัวเลข และต้องเป็นประเทศจริงที่มีใน countryMap (ไม่เอา Aggregates)
-      if (item.value !== null && countryMap[code]) {
+      // ต้องมีตัวเลข และต้องเป็นประเทศจริงที่ผ่านการคัดกรองใน countryMap เท่านั้น
+      if (item.value !== null && countryMap[code] && !EXCLUDED_ENTITIES.has(countryMap[code].name)) {
         list.push({
           country: countryMap[code].name,
           countryCode: code,
@@ -129,7 +291,9 @@ async function fetchIndicatorFromWorldBank(indicatorCode, year) {
   return list;
 }
 
-// Route: GET /api/indicator-data
+// ==========================================
+// 8. REST API Route: GET /api/indicator-data
+// ==========================================
 router.get('/indicator-data', async (req, res) => {
   const type = (req.query.type || 'gdp').toLowerCase();
   const year = req.query.year || '2025';
@@ -158,7 +322,7 @@ router.get('/indicator-data', async (req, res) => {
       );
     }
 
-    // ใส่ข้อมูลสถานะสีและทิศทางลูกศร
+    // กำหนดสถานะสีและทิศทางลูกศรให้กับข้อมูลแต่ละรายการ
     const result = filtered.map((item, index) => {
       const status = getIndicatorStatus(type, item.value);
       return {

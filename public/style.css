@@ -1,4 +1,4 @@
-﻿/* ==============================================================
+/* ==============================================================
    🔧 ตั้งค่าขนาดทั้งหมดตรงนี้ — แก้จุดเดียวได้เลย
    ============================================================== */
 :root {
@@ -341,7 +341,7 @@ body {
 .value { font-size: var(--value-font-size); font-weight: 900; text-align: right; min-width: 50px; }
 .value.green { color: #00ff2e; }
 .value.red   { color: #ff3134; }
-/* ========== ??????????????????? Record ========== */
+/* ========== หน้า RECORD (บันทึกข้อมูลเศรษฐกิจ) ========== */
 .record-layout {
   display: flex;
   flex: 1;
@@ -396,7 +396,7 @@ body {
   align-items: center;
 }
 
-/* ========== ??????????????????? GDP, INFLATION, UNEMPLOYMENT ========== */
+/* ========== หน้าข้อมูลตัวชี้วัด GDP, INFLATION, UNEMPLOYMENT ========== */
 .data-layout {
   display: flex;
   flex: 1;
