@@ -125,21 +125,49 @@ const fallbackData = {
   ]
 };
 
+// เก็บ Cache รายชื่อประเทศและภูมิภาคทางการจาก World Bank
+let serverCountryMetadataCache = null;
+
+async function getServerCountryMetadata() {
+  if (serverCountryMetadataCache) return serverCountryMetadataCache;
+  try {
+    const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=350');
+    const data = await res.json();
+    const map = {};
+    if (data && data[1]) {
+      data[1].forEach(c => {
+        if (c.region && c.region.value !== 'Aggregates') {
+          map[c.id] = { name: c.name, region: c.region.value.trim() };
+        }
+      });
+    }
+    serverCountryMetadataCache = map;
+    return serverCountryMetadataCache;
+  } catch (err) {
+    return {};
+  }
+}
+
 // ==========================================
 // 4. ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่เลือก
 // ==========================================
 async function fetchIndicator(indicatorCode, year = '2025') {
-  const url = `https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`;
-  const response = await fetch(url);
-  const data = await response.json();
+  const [countryMap, rawResponse] = await Promise.all([
+    getServerCountryMetadata(),
+    fetch(`https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`)
+      .then(r => r.json())
+      .catch(() => null)
+  ]);
 
   let list = [];
-  if (data && data[1]) {
-    for (let item of data[1]) {
-      // กรองเอาเฉพาะข้อมูลที่มีตัวเลข และไม่ใช่ชื่อภูมิภาค
-      if (item.value !== null && item.countryiso3code && !item.country.value.includes('&')) {
+  if (rawResponse && rawResponse[1]) {
+    for (let item of rawResponse[1]) {
+      const code = item.countryiso3code || (item.country && item.country.id);
+      // กรองเฉพาะประเทศจริงที่มีใน countryMap (ไม่เอา Aggregates)
+      if (item.value !== null && countryMap[code]) {
         list.push({
-          country: item.country.value,
+          country: countryMap[code].name,
+          region: countryMap[code].region,
           value: parseFloat(item.value.toFixed(1)),
           displayValue: item.value.toFixed(1) + '%',
           year: String(year)

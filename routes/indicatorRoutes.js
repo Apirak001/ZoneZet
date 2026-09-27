@@ -1,6 +1,6 @@
 // routes/indicatorRoutes.js
 // จัดการ API สำหรับดึงข้อมูลรายชื่อประเทศ (GDP, Inflation, Unemployment)
-// รองรับการเลือกปี 2020-2025 และค้นหาประเทศ
+// รองรับ: เลือกปี 2020-2025, ค้นหาประเทศ, และกรองกลุ่มภูมิภาค (Aggregates) ออกด้วย API ทางการของ World Bank
 
 const express = require('express');
 const router = express.Router();
@@ -13,28 +13,41 @@ const INDICATOR_CODES = {
 };
 
 // ตัวแปร In-Memory Cache เก็บข้อมูลแยกตามประเภทและปี (เช่น gdp_2025)
+const indicatorCache = {};
 
-const countryMetaCache = {};
-async function loadCountryMeta() {
+// เก็บ Cache รายชื่อประเทศและภูมิภาคทางการจาก World Bank
+let countryMetadataCache = null;
+
+// ฟังก์ชันดึงรายชื่อประเทศและภูมิภาคจริงจาก World Bank (คัดกลุ่ม Aggregates ทิ้ง)
+async function getCountryMetadata() {
+  if (countryMetadataCache) return countryMetadataCache;
+
   try {
-    const res = await fetch('https://api.worldbank.org/v2/country/all?format=json&per_page=300');
+    const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=350');
     const data = await res.json();
+    const map = {};
+
     if (data && data[1]) {
       data[1].forEach(c => {
-        countryMetaCache[c.id] = {
-          iso2: (c.iso2Code || '').toLowerCase(),
-          region: c.region && c.region.value ? c.region.value : 'Unknown'
-        };
+        // คัดกรองเฉพาะ "ประเทศจริง" เท่านั้น
+        // กลุ่มภูมิภาค/ทวีป เช่น Arab World, Caribbean small states, World จะมี region.value เป็น 'Aggregates'
+        if (c.region && c.region.value !== 'Aggregates') {
+          map[c.id] = {
+            name: c.name,
+            iso2: c.iso2Code ? c.iso2Code.toLowerCase() : '',
+            region: c.region.value.trim()
+          };
+        }
       });
     }
-    console.log('[indicatorRoutes] Loaded country metadata:', Object.keys(countryMetaCache).length, 'countries');
-  } catch (e) {
-    console.error("[indicatorRoutes] Failed to load country meta", e.message);
+
+    countryMetadataCache = map;
+    return countryMetadataCache;
+  } catch (err) {
+    console.error('[indicatorRoutes] ไม่สามารถโหลด Metadata ประเทศได้:', err.message);
+    return {};
   }
 }
-loadCountryMeta();
-
-const indicatorCache = {};
 
 // ฟังก์ชัน Bubble Sort สำหรับเรียงลำดับจากค่ามากไปน้อย
 function bubbleSort(arr) {
@@ -63,10 +76,15 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'inflation') {
-      const trend = value >= 0 ? 'up' : 'down';
-      const colorClass = value <= 4.0 ? 'green' : 'red';
-      return { colorClass, trend };
+    // เงินเฟ้อ: 1% - 4% = ดี (เขียว, up), > 4% = แย่ เงินเฟ้อพุ่ง (แดง, up), < 1% = แย่ เงินฝืด (แดง, down)
+    if (value >= 1.0 && value <= 4.0) {
+      return { colorClass: 'green', trend: 'up' };
+    } else if (value > 4.0) {
+      return { colorClass: 'red', trend: 'up' };
+    } else {
+      return { colorClass: 'red', trend: 'down' };
     }
+  }
 
   if (type === 'unemployment') {
     // ว่างงาน: < 5% = ดี คนว่างงานต่ำ (เขียว, down), >= 5% = แย่ คนว่างงานสูง (แดง, up)
@@ -80,40 +98,35 @@ function getIndicatorStatus(type, value) {
   return { colorClass: 'green', trend: 'up' };
 }
 
-// ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่ระบุ (มี Timeout ป้องกันหน้าเว็บค้าง)
+// ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่ระบุ (เชื่อมข้อมูลภูมิภาคและตัด Aggregates ออก)
 async function fetchIndicatorFromWorldBank(indicatorCode, year) {
-  const url = `https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000); // หากเกิน 6 วินาทีให้ยกเลิกทันที ไม่ให้รอนาน
+  const [countryMap, rawResponse] = await Promise.all([
+    getCountryMetadata(),
+    fetch(`https://api.worldbank.org/v2/country/all/indicator/${indicatorCode}?date=${year}&format=json&per_page=300`)
+      .then(res => res.json())
+      .catch(() => null)
+  ]);
 
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    const data = await response.json();
+  let list = [];
+  if (rawResponse && rawResponse[1]) {
+    for (let item of rawResponse[1]) {
+      const code = item.countryiso3code || (item.country && item.country.id);
 
-    let list = [];
-    if (data && data[1]) {
-      for (let item of data[1]) {
-        // กรองเอาเฉพาะข้อมูลที่มีตัวเลข และไม่ใช่ชื่อภูมิภาค (Aggregates)
-        if (item.value !== null && item.countryiso3code && !item.country.value.includes('&')) {
-          list.push({
-            country: item.country.value,
-            countryCode: item.countryiso3code,
-            iso2: countryMetaCache[item.countryiso3code]?.iso2 || (item.country.id ? item.country.id.toLowerCase() : ''),
-            region: countryMetaCache[item.countryiso3code]?.region || 'Unknown',
-            value: parseFloat(item.value.toFixed(1)),
-            displayValue: item.value.toFixed(1) + '%',
-            year: String(year)
-          });
-        }
+      // ต้องมีตัวเลข และต้องเป็นประเทศจริงที่มีใน countryMap (ไม่เอา Aggregates)
+      if (item.value !== null && countryMap[code]) {
+        list.push({
+          country: countryMap[code].name,
+          countryCode: code,
+          iso2: countryMap[code].iso2,
+          region: countryMap[code].region,
+          value: parseFloat(item.value.toFixed(1)),
+          displayValue: item.value.toFixed(1) + '%',
+          year: String(year)
+        });
       }
     }
-    return list;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn(`[indicatorRoutes] Warning: World Bank API ช้าหรือไม่ตอบสนอง (${year}):`, err.message);
-    return [];
   }
+  return list;
 }
 
 // Route: GET /api/indicator-data
@@ -135,12 +148,13 @@ router.get('/indicator-data', async (req, res) => {
       indicatorCache[cacheKey] = list;
     }
 
-    // กรองค้นหาชื่อประเทศถ้ามีส่งคำค้นหามา
+    // กรองค้นหาตามชื่อประเทศ รหัสประเทศ หรือชื่อภูมิภาค
     let filtered = list;
     if (search) {
       filtered = list.filter(item =>
         item.country.toLowerCase().includes(search) ||
-        (item.countryCode && item.countryCode.toLowerCase().includes(search))
+        (item.countryCode && item.countryCode.toLowerCase().includes(search)) ||
+        (item.region && item.region.toLowerCase().includes(search))
       );
     }
 
@@ -150,6 +164,7 @@ router.get('/indicator-data', async (req, res) => {
       return {
         no: index + 1,
         country: item.country,
+        countryCode: item.countryCode,
         iso2: item.iso2,
         region: item.region,
         value: item.value,
