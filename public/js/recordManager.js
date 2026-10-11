@@ -260,38 +260,53 @@ function initRecordPage() {
   });
 }
 
-// ==========================================
-// 3. ฟังก์ชันลบข้อมูลและเรียกคืน (Delete & Undo)
-// ==========================================
+// ==============================================================
+// 3. ฟังก์ชันลบข้อมูลและเรียกคืน [DSA: Stack (LIFO — Last-In, First-Out)]
+// ==============================================================
+
 /**
- * ลบข้อมูลประเทศในหน้า Record พร้อมเก็บลง Stack สำรองไว้สำหรับกู้คืน
+ * [หน้าที่]: ลบข้อมูลประเทศในหน้า Record พร้อมเก็บลง Stack สำรองไว้สำหรับกู้คืน
+ * [ประยุกต์ใช้ DSA: Stack.push()]:
+ * เมื่อผู้ใช้กดปุ่มลบ (Delete) ข้อมูลที่ถูกลบพร้อมตำแหน่ง Index เดิม
+ * จะถูกผลัก (Push) เข้าไปเก็บไว้บนสุดของ Stack `deletedRecords[type]`
+ * @param {string} type - หมวดหมู่ ('gdp', 'inflation', 'unemployment')
+ * @param {number} index - ตำแหน่งของข้อมูลในหมวดนั้น
  */
 function deleteRecordItem(type, index) {
   if (!window.deletedRecords[type]) window.deletedRecords[type] = [];
 
+  // นำข้อมูลออกจาก Session ปัจจุบัน
   const removedItem = window.processedRecords[type].splice(index, 1)[0];
+
+  // [DSA: Stack Push]: ดันข้อมูลที่ถูกลบเข้าไปบนสุดของ Stack
   window.deletedRecords[type].push({ item: removedItem, index: index });
 
-  if (window.showGlassAlert) window.showGlassAlert('ลบข้อมูลเรียบร้อยแล้ว', 'success');
+  if (window.showGlassAlert) window.showGlassAlert('ลบข้อมูลเรียบร้อยแล้ว (สามารถกดปุ่ม Rollback เพื่อกู้คืนได้)', 'success');
   initRecordPage();
 }
 
 /**
- * เรียกคืนข้อมูลที่เพิ่งถูกลบรายการล่าสุด (Stack LIFO)
+ * [หน้าที่]: เรียกคืนข้อมูลที่เพิ่งถูกลบรายการล่าสุดกลับคืนมา [DSA: Stack.pop()]
+ * [ประโยชน์ต่อ UX: Forgiveness]: ผู้ใช้กล้าทดลองใช้งาน เพราะมั่นใจว่าเผลอกดลบผิดก็กด Undo ได้เสมอ
+ * [หลักการ LIFO]: ข้อมูลที่ถูกลบเป็นอันล่าสุด จะอยู่บนสุดของ Stack และถูกดึงออกมาก่อนด้วยคำสั่ง .pop()
+ * @param {string} type - หมวดหมู่ที่ต้องการกู้คืน
  */
 function undoDeleteRecord(type) {
+  // ตรวจสอบว่ามีข้อมูลใน Stack หรือไม่
   if (!window.deletedRecords || !window.deletedRecords[type] || window.deletedRecords[type].length === 0) {
     if (window.showGlassAlert) window.showGlassAlert('ไม่มีประวัติการลบให้เรียกคืน', 'warning');
     return;
   }
 
+  // [DSA: Stack Pop]: ดึงรายการที่ถูกลบล่าสุดออกจากหัว Stack (LIFO)
   const lastDeleted = window.deletedRecords[type].pop();
   const currentLen = window.processedRecords[type].length;
   const insertIndex = Math.min(lastDeleted.index, currentLen);
 
+  // นำกลับไปแทรกในตำแหน่งเดิม
   window.processedRecords[type].splice(insertIndex, 0, lastDeleted.item);
 
-  if (window.showGlassAlert) window.showGlassAlert('เรียกคืนข้อมูลสำเร็จ!', 'success');
+  if (window.showGlassAlert) window.showGlassAlert('เรียกคืนข้อมูลสำเร็จ! (Undo จาก Stack)', 'success');
   initRecordPage();
 }
 

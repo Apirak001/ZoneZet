@@ -6,7 +6,7 @@
  *              - นำโครงสร้างข้อมูล Queue (Week 6) มาประยุกต์ใช้จัดลำดับการดึงข้อมูล
  *              - ใช้อัลกอริทึม Bubble Sort จัดอันดับข้อมูล TOP 5
  *              - ให้บริการ REST API สำหรับหน้า Dashboard และตารางข้อมูล
- *              - มีระบบ In-Memory Cache เพื่อความรวดเร็วในการโหลดข้อมูล
+ *              - มีระบบ In-Memory Cache (Hash Table) เพื่อความรวดเร็วในการโหลดข้อมูล
  * ==============================================================
  */
 
@@ -16,24 +16,25 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ตั้งค่า Middleware
+// [ตั้งค่า Middleware]: รองรับ JSON Body และแชร์ไฟล์ Static ในโฟลเดอร์ public
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ==========================================
-// 1. โครงสร้างข้อมูล Queue (ตามสไลด์ Week 6)
-// ==========================================
+// ==============================================================
+// 1. โครงสร้างข้อมูล Queue (FIFO — First-In, First-Out) ตามสไลด์ Week 6
+// ==============================================================
+// [หน้าที่]: ใช้จัดลำดับคำขอ (Task Queue) ในการดึงข้อมูล 3 ตัวชี้วัดให้ประมวลผลตามลำดับอย่างเป็นธรรม
 class Queue {
   constructor() {
-    this.items = [];
+    this.items = []; // อาเรย์ภายในสำหรับจัดเก็บสมาชิกในคิว
   }
 
-  // เพิ่มข้อมูลต่อท้ายคิว (Enqueue)
+  // [Enqueue]: เพิ่มข้อมูลตัวใหม่ต่อท้ายคิว
   enqueue(item) {
     this.items.push(item);
   }
 
-  // เอาข้อมูลหัวคิวออกตามลำดับก่อน-หลัง (FIFO - Dequeue)
+  // [Dequeue]: นำข้อมูลตัวแรกสุดออกจากหัวคิว (FIFO) และคืนค่ากลับมา
   dequeue() {
     if (this.isEmpty()) {
       return null;
@@ -41,51 +42,54 @@ class Queue {
     return this.items.shift();
   }
 
-  // ดูข้อมูลตัวแรกที่หัวคิวโดยไม่เอาออก (Peek)
+  // [Peek]: ดูข้อมูลตัวแรกที่อยู่หัวคิวโดยไม่นำออกจากคิว
   peek() {
     return this.items[0];
   }
 
-  // เช็คว่าคิวว่างหรือไม่ (isEmpty)
+  // [isEmpty]: ตรวจสอบว่าคิวว่างหรือไม่ (คืนค่า true/false)
   isEmpty() {
     return this.items.length === 0;
   }
 
-  // ดูจำนวนสมาชิกทั้งหมดในคิว (Size)
+  // [Size]: ดูจำนวนงานหรือข้อมูลทั้งหมดที่กำลังรออยู่ในคิว
   size() {
     return this.items.length;
   }
 }
 
-// ==========================================
-// 2. อัลกอริทึม Sort (Bubble Sort เขียนเอง)
-// ==========================================
+// ==============================================================
+// 2. อัลกอริทึม Sort (Bubble Sort เขียนเอง ไม่ใช้ .sort() built-in)
+// ==============================================================
 /**
- * จัดเรียงข้อมูลจากค่ามากไปหาน้อย เพื่อหา 5 อันดับแรก (TOP 5)
- * @param {Array} arr - อาร์เรย์ของข้อมูลตัวเลข
- * @returns {Array} อาร์เรย์ที่จัดเรียงลำดับเรียบร้อยแล้ว
+ * [หน้าที่]: จัดเรียงข้อมูลจากค่ามากไปหาน้อย เพื่อหา 5 อันดับแรก (TOP 5)
+ * [หลักการ]: เปรียบเทียบข้อมูลคู่ติดกัน หากตัวซ้ายน้อยกว่าตัวขวา จะสลับที่กันด้วยตัวแปร temp
+ * [ประโยชน์ต่อ UX]: ผู้ใช้เห็น 5 ประเทศที่มีอัตราสูงสุดได้ทันทีบนหน้าแรก
+ * @param {Array} arr - อาร์เรย์ของข้อมูลตัวเลขเศรษฐกิจ
+ * @returns {Array} อาร์เรย์ใหม่ที่จัดเรียงลำดับเรียบร้อยแล้ว
  */
 function bubbleSort(arr) {
-  let result = [...arr];
+  let result = [...arr]; // โคลนข้อมูลออกมาเพื่อไม่ให้กระทบข้อมูลต้นฉบับ
   for (let i = 0; i < result.length; i++) {
     for (let j = 0; j < result.length - 1; j++) {
+      // เงื่อนไขเรียงจากมากไปน้อย: ถ้าตัวหน้า < ตัวหลัง ให้สลับตำแหน่ง
       if (result[j].value < result[j + 1].value) {
-        // สลับตำแหน่งด้วยตัวแปร temp
-        let temp = result[j];
-        result[j] = result[j + 1];
-        result[j + 1] = temp;
+        let temp = result[j];          // พักค่าตัวหน้าไว้ใน temp
+        result[j] = result[j + 1];     // เอาตัวหลังมาแทนที่ตัวหน้า
+        result[j + 1] = temp;          // เอาค่าจาก temp ไปใส่ตัวหลัง
       }
     }
   }
   return result;
 }
 
-// ==========================================
-// 3. กำหนดเงื่อนไขสีตัวเลขและ Icon ขึ้น/ลง (ดี = เขียว / แย่ = แดง)
-// ==========================================
+// ==============================================================
+// 3. กำหนดเงื่อนไขสีตัวเลขและ Icon แนวโน้ม (ดี = เขียว / แย่ = แดง)
+// ==============================================================
+// [หน้าที่]: แปลงตัวเลขเปอร์เซ็นต์ให้เป็นสถานะสีและทิศทางตามหลักเศรษฐศาสตร์
 function getIndicatorStatus(type, value) {
   if (type === 'gdp') {
-    // GDP: โตเกิน 0% คือดี (เขียว, up), ติดลบคือแย่ (แดง, down)
+    // GDP: เติบโตมากกว่า 0% = ดี (เขียว, ลูกศรขึ้น), ติดลบ = ถดถอย (แดง, ลูกศรลง)
     const isGood = value > 0;
     return {
       trend: isGood ? 'up' : 'down',
@@ -94,7 +98,7 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'inflation') {
-    // เงินเฟ้อ: 1% - 4% คือระดับเหมาะสม (เขียว, up), นอกเหนือจากนั้นคือแย่ (แดง)
+    // เงินเฟ้อ: 1% - 4% = พอดี (เขียว, ลูกศรขึ้น), > 4% = แพงเกิน (แดง), < 1% = เสี่ยงเงินฝืด (แดง)
     const isGood = value >= 1.0 && value <= 4.0;
     return {
       trend: value >= 0 ? 'up' : 'down',
@@ -103,7 +107,7 @@ function getIndicatorStatus(type, value) {
   }
 
   if (type === 'unemployment') {
-    // อัตราว่างงาน: ต่ำกว่า 5% คือดี (เขียว, down), 5% ขึ้นไปคือสูง (แดง, up)
+    // อัตราว่างงาน: ต่ำกว่า 5% = ดี คนมีงานทำ (เขียว, ลูกศรลง), 5% ขึ้นไป = ว่างงานสูง (แดง, ลูกศรขึ้น)
     const isGood = value < 5.0;
     return {
       trend: isGood ? 'down' : 'up',
@@ -114,9 +118,10 @@ function getIndicatorStatus(type, value) {
   return { trend: 'up', colorClass: 'green' };
 }
 
-// ==========================================
-// 4. การจัดการรายชื่อประเทศและภูมิภาค (ตัด Aggregates ทิ้ง)
-// ==========================================
+// ==============================================================
+// 4. [DSA: Hash Set] จัดการรายชื่อกลุ่มทวีปและเกลี่ยภูมิภาคเดี่ยว
+// ==============================================================
+// [Hash Set O(1)]: รวมรหัสและชื่อกลุ่มภูมิภาครวม (Aggregates) ที่ต้องตัดทิ้ง เพื่อไม่ให้หลุดมาเป็นชื่อประเทศ
 const EXCLUDED_ENTITIES = new Set([
   'South Asia', 'East Asia & Pacific', 'Europe & Central Asia',
   'Latin America & Caribbean', 'Middle East & North Africa',
@@ -125,21 +130,23 @@ const EXCLUDED_ENTITIES = new Set([
 ]);
 
 /**
- * เกลี่ยชื่อภูมิภาคให้กระชับ มีเพียง 1 ภูมิภาคต่อประเทศ
+ * [หน้าที่]: เกลี่ยชื่อภูมิภาคผสมของ World Bank ให้เป็นภูมิภาคเดี่ยวที่แม่นยำ
+ * [แก้ปัญหา]: ไม่ให้ 1 ประเทศมีชื่อภูมิภาคซัดไป 2-4 อัน (เช่น Europe & Central Asia)
  */
 function normalizeRegion(countryName, rawRegion) {
   if (!rawRegion) return 'Other';
   const cName = (countryName || '').trim();
   const region = rawRegion.trim();
 
-  // แยกกลุ่ม Central Asia ออกจาก Europe
+  // 1. แยกประเทศแถบเอเชียกลางออกจากยุโรป
   const centralAsianCountries = ['Kazakhstan', 'Kyrgyz Republic', 'Kyrgyzstan', 'Tajikistan', 'Turkmenistan', 'Uzbekistan'];
   if (centralAsianCountries.some(c => cName.includes(c))) return 'Central Asia';
 
-  // แยกกลุ่ม North Africa ออกจาก Middle East
+  // 2. แยกประเทศแถบแอฟริกาเหนือออกจากตะวันออกกลาง
   const northAfricanCountries = ['Egypt, Arab Rep.', 'Egypt', 'Libya', 'Algeria', 'Morocco', 'Tunisia'];
   if (northAfricanCountries.some(c => cName.includes(c))) return 'North Africa';
 
+  // 3. ปรับชื่อกลุ่มผสมให้กระชับ
   if (region.includes('Middle East') || region.includes('North Africa')) {
     if (cName.includes('Afghanistan') || cName.includes('Pakistan')) return 'South Asia';
     return 'Middle East';
@@ -162,15 +169,18 @@ function normalizeRegion(countryName, rawRegion) {
   return region;
 }
 
-// ตัวแปรแคชสำหรับข้อมูลประเทศ
+// [DSA: Hash Table]: แคชข้อมูลประเทศในหน่วยความจำ
 let serverCountryMetadataCache = null;
 
+/**
+ * [หน้าที่]: ดึงและสร้าง Hash Table รายชื่อประเทศจริงจาก World Bank (คัดกลุ่มทวีปออก)
+ */
 async function getServerCountryMetadata() {
   if (serverCountryMetadataCache) return serverCountryMetadataCache;
   try {
     const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=350');
     const data = await res.json();
-    const map = {};
+    const map = {}; // สร้าง Hash Table สำหรับเก็บข้อมูลประเทศ
 
     if (data && data[1]) {
       data[1].forEach(c => {
@@ -179,7 +189,7 @@ async function getServerCountryMetadata() {
         const capital = c.capitalCity ? c.capitalCity.trim() : '';
         const regionVal = (c.region && c.region.value) ? c.region.value.trim() : '';
 
-        // คัดกรองเฉพาะประเทศจริง ไม่เอา Aggregates
+        // เงื่อนไขประเทศจริง: ต้องมีเมืองหลวง และไม่ใช่ Aggregates
         if (
           regionVal !== 'Aggregates' &&
           regionVal !== '' &&
@@ -187,6 +197,7 @@ async function getServerCountryMetadata() {
           !EXCLUDED_ENTITIES.has(name) &&
           !EXCLUDED_ENTITIES.has(id)
         ) {
+          // เก็บลง Hash Table โดยใช้รหัสประเทศ id เป็น Key เพื่อให้ค้นหาได้ในเวลา O(1)
           map[id] = {
             name: name,
             iso2: c.iso2Code ? c.iso2Code.toLowerCase() : '',
@@ -203,9 +214,9 @@ async function getServerCountryMetadata() {
   }
 }
 
-// ==========================================
-// 5. ฟังก์ชันดึงข้อมูลจาก World Bank API
-// ==========================================
+// ==============================================================
+// 5. ฟังก์ชันดึงข้อมูลสถิติจาก World Bank API ตามปีที่ระบุ
+// ==============================================================
 async function fetchIndicator(indicatorCode, year = '2025') {
   const [countryMap, rawResponse] = await Promise.all([
     getServerCountryMetadata(),
@@ -218,7 +229,7 @@ async function fetchIndicator(indicatorCode, year = '2025') {
   if (rawResponse && rawResponse[1]) {
     for (let item of rawResponse[1]) {
       const code = item.countryiso3code || (item.country && item.country.id);
-      // กรองเฉพาะประเทศจริงที่มีใน countryMap (ไม่เอา Aggregates)
+      // [DSA: Hash Table Lookup O(1)]: ตรวจสอบข้อมูลประเทศด้วย countryMap[code] ทันที
       if (item.value !== null && countryMap[code] && !EXCLUDED_ENTITIES.has(countryMap[code].name)) {
         list.push({
           country: countryMap[code].name,
@@ -234,7 +245,7 @@ async function fetchIndicator(indicatorCode, year = '2025') {
   return list;
 }
 
-// ข้อมูลสำรองกรณีเน็ตหลุดหรือไม่สามารถเชื่อมต่อ API ได้
+// [ข้อมูลสำรอง]: ป้องกันระบบล่มกรณีเน็ตหลุดหรือไม่สามารถเชื่อมต่อ API ได้ (Technical Execution)
 const fallbackData = {
   gdp: [
     { country: 'Guyana', iso2: 'gy', value: 19.3, displayValue: '19.3%', colorClass: 'green', trend: 'up', year: '2025' },
@@ -259,14 +270,14 @@ const fallbackData = {
   ]
 };
 
-// ตัวแปร In-Memory Cache สำหรับ Dashboard Top 5
+// [DSA: Hash Cache]: ตัวแปรแคชสำหรับเก็บข้อมูลหน้า Dashboard TOP 5
 let cachedTop5 = null;
 
-// ==========================================
-// 6. REST API สำหรับส่งข้อมูล TOP 5 ให้หน้า Dashboard (HOME)
-// ==========================================
+// ==============================================================
+// 6. REST API: GET /api/dashboard/top5 (ข้อมูล 5 อันดับแรกหน้าแรก)
+// ==============================================================
 app.get('/api/dashboard/top5', async (req, res) => {
-  // หากมีแคชอยู่แล้ว ให้ส่งข้อมูลกลับทันที ไม่ต้องรอนาน
+  // หากมีแคชอยู่แล้ว ให้ส่งข้อมูลกลับทันที ไม่ต้องรอนาน (UX ไวระดับ 1ms)
   if (cachedTop5) {
     return res.json({
       status: 'success',
@@ -275,7 +286,8 @@ app.get('/api/dashboard/top5', async (req, res) => {
   }
 
   try {
-    // นำโครงสร้าง Queue (FIFO) มาจัดคิวการประมวลผล 3 ตัวชี้วัดตามลำดับ
+    // [ประยุกต์ใช้ DSA: Queue (FIFO)]:
+    // นำ Queue มาใช้จัดคิวคำขอทั้ง 3 ตัวชี้วัดตามลำดับก่อน-หลังอย่างเป็นธรรม
     const requestQueue = new Queue();
     requestQueue.enqueue({ type: 'gdp', code: 'NY.GDP.MKTP.KD.ZG' });
     requestQueue.enqueue({ type: 'inflation', code: 'FP.CPI.TOTL.ZG' });
@@ -283,15 +295,15 @@ app.get('/api/dashboard/top5', async (req, res) => {
 
     const results = {};
 
-    // ดึงงานออกจากคิวทีละตัวจนครบ
+    // ดึงงานออกจากคิวทีละตัวตามลำดับ FIFO
     while (!requestQueue.isEmpty()) {
       const task = requestQueue.dequeue();
       const rawData = await fetchIndicator(task.code);
 
-      // เรียงลำดับข้อมูลด้วย Bubble Sort
+      // [ประยุกต์ใช้ DSA: Bubble Sort]: เรียงลำดับจากค่ามากไปหาน้อย
       const sorted = bubbleSort(rawData);
 
-      // คัดเลือก 5 อันดับแรก พร้อมกำหนดสีและสถานะ
+      // ตัดเอาเฉพาะ 5 อันดับแรก พร้อมระบุสีสถานะ
       const top5 = sorted.slice(0, 5).map(item => ({
         ...item,
         colorClass: getIndicatorStatus(task.type, item.value).colorClass,
@@ -318,13 +330,13 @@ app.get('/api/dashboard/top5', async (req, res) => {
   }
 });
 
-// ==========================================
-// 7. เชื่อมต่อ Route จัดการ Indicator (แยกโมดูล)
-// ==========================================
+// ==============================================================
+// 7. เชื่อมต่อ Route จัดการ Indicator (แยกโมดูลเพื่อความเป็นระเบียบ)
+// ==============================================================
 const indicatorRoutes = require('./routes/indicatorRoutes');
 app.use('/api', indicatorRoutes);
 
-// ส่ง index.html สำหรับเส้นทางทั่วไป
+// ส่ง index.html สำหรับเส้นทางทั่วไปเพื่อรองรับระบบ SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

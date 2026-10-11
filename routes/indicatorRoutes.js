@@ -7,35 +7,35 @@
  *              - Inflation (รหัส FP.CPI.TOTL.ZG)
  *              - Unemployment (รหัส SL.UEM.TOTL.ZS)
  *              - รองรับการเลือกปี 2020 - 2025 และค้นหาชื่อประเทศ/ภูมิภาค
- *              - กรองกลุ่มทวีป/ภูมิภาครวม (Aggregates เช่น South Asia, World) ออก
+ *              - [DSA: Hash Set] กรองกลุ่มทวีป/ภูมิภาครวม (Aggregates เช่น South Asia, World) ออก
  *              - เกลี่ยและจัดระเบียบชื่อภูมิภาคให้กระชับ ชัดเจน มีเพียง 1 ภูมิภาคต่อประเทศ
- *              - เรียงลำดับข้อมูลด้วย Bubble Sort
- *              - จัดเก็บ Cache ในหน่วยความจำเพื่อความรวดเร็ว
+ *              - [DSA: Bubble Sort] เรียงลำดับข้อมูลด้วย Bubble Sort จากค่ามากไปน้อย
+ *              - [DSA: Hash Table] จัดเก็บ Cache ในหน่วยความจำเพื่อความรวดเร็วในการเรียกซ้ำ
  * ==============================================================
  */
 
 const express = require('express');
 const router = express.Router();
 
-// ==========================================
+// ==============================================================
 // 1. รหัสตัวชี้วัดทางการของ World Bank API
-// ==========================================
+// ==============================================================
 const INDICATOR_CODES = {
   gdp: 'NY.GDP.MKTP.KD.ZG',           // อัตราการเติบโตทางเศรษฐกิจ (GDP annual %)
   inflation: 'FP.CPI.TOTL.ZG',        // อัตราเงินเฟ้อ (Inflation, consumer prices annual %)
   unemployment: 'SL.UEM.TOTL.ZS'      // อัตราการว่างงาน (Unemployment, total % of total labor force)
 };
 
-// ตัวแปร In-Memory Cache เก็บข้อมูลแยกตามประเภทและปี (เช่น gdp_2025)
+// [DSA: Hash Table]: ตัวแปร In-Memory Cache เก็บข้อมูลแยกตามประเภทและปี เช่น key: 'gdp_2025'
 const indicatorCache = {};
 
-// ตัวแปร Cache เก็บข้อมูลรายชื่อประเทศและภูมิภาคทางการจาก World Bank
+// [DSA: Hash Table]: เก็บแคชข้อมูลรายชื่อประเทศและภูมิภาคทางการจาก World Bank
 let countryMetadataCache = null;
 
-// ==========================================
-// 2. รายชื่อกลุ่มรวบยอด (Aggregates) ที่ต้องคัดทิ้ง
-// ==========================================
-// ป้องกันไม่ให้กลุ่มภูมิภาค เช่น 'South Asia', 'World', 'Arab World' หลุดเข้ามาเป็นชื่อประเทศ
+// ==============================================================
+// 2. [DSA: Hash Set] รายชื่อกลุ่มรวบยอด (Aggregates) ที่ต้องคัดทิ้ง O(1)
+// ==============================================================
+// [หน้าที่]: ป้องกันไม่ให้กลุ่มภูมิภาค เช่น 'South Asia', 'World', 'Arab World' หลุดเข้ามาเป็นชื่อประเทศ
 const EXCLUDED_ENTITIES = new Set([
   'South Asia',
   'East Asia & Pacific',
@@ -77,11 +77,12 @@ const EXCLUDED_ENTITIES = new Set([
   'SAS', 'EAS', 'ECS', 'LCN', 'MEA', 'SSF', 'NAC', 'WLD'
 ]);
 
-// ==========================================
+// ==============================================================
 // 3. ฟังก์ชันเกลี่ยและจัดระเบียบภูมิภาคให้มีเพียง 1 เดียวและตรงเป๊ะ
-// ==========================================
+// ==============================================================
 /**
- * แปลงชื่อกลุ่มภูมิภาคผสมของ World Bank ให้เป็นภูมิภาคเดี่ยวที่กระชับและเข้าใจง่าย
+ * [หน้าที่]: แปลงชื่อกลุ่มภูมิภาคผสมของ World Bank ให้เป็นภูมิภาคเดี่ยวที่กระชับและเข้าใจง่าย
+ * [แก้ปัญหา UX]: ป้องกันไม่ให้บางประเทศแสดงชื่อยาวหรือซัดไปหลายภูมิภาค
  * @param {string} countryName - ชื่อประเทศ
  * @param {string} rawRegion - ชื่อภูมิภาคดิบจาก World Bank API
  * @returns {string} ชื่อภูมิภาคที่กระชับและถูกต้อง
@@ -157,16 +158,20 @@ function normalizeRegion(countryName, rawRegion) {
   return region;
 }
 
-// ==========================================
-// 4. ฟังก์ชันดึงรายชื่อประเทศจริงจาก World Bank (ตัดกลุ่ม Aggregates ทิ้ง)
-// ==========================================
+// ==============================================================
+// 4. [DSA: Hash Table] ดึงรายชื่อประเทศจริงจาก World Bank (ตัดกลุ่ม Aggregates ทิ้ง)
+// ==============================================================
+/**
+ * [หน้าที่]: ดึงข้อมูลประเทศทั้งหมดแล้วแปลงเป็น Hash Table แบบ Key-Value
+ * [ประโยชน์]: ให้เราสามารถ lookup ข้อมูลประเทศได้ในเวลา O(1) ผ่าน map[id]
+ */
 async function getCountryMetadata() {
   if (countryMetadataCache) return countryMetadataCache;
 
   try {
     const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=350');
     const data = await res.json();
-    const map = {};
+    const map = {}; // Hash Table ว่างเปล่าสำหรับใส่ข้อมูล
 
     if (data && data[1]) {
       data[1].forEach(c => {
@@ -176,10 +181,10 @@ async function getCountryMetadata() {
         const regionVal = (c.region && c.region.value) ? c.region.value.trim() : '';
 
         /**
-         * กรองเฉพาะ "ประเทศจริง" เท่านั้น:
+         * [เงื่อนไขตรวจสอบประเทศจริง 100%]:
          * 1. region.value ต้องไม่เป็น 'Aggregates'
          * 2. ต้องมีเมืองหลวง (capitalCity ไม่ว่าง) ซึ่ง World Bank ใส่เฉพาะประเทศจริง
-         * 3. ไม่อยู่ในรายชื่อ EXCLUDED_ENTITIES (เช่น 'South Asia', 'World')
+         * 3. ไม่อยู่ในรายชื่อ EXCLUDED_ENTITIES (ตรวจเช็คด้วย Hash Set O(1))
          */
         if (
           regionVal !== 'Aggregates' &&
@@ -188,6 +193,7 @@ async function getCountryMetadata() {
           !EXCLUDED_ENTITIES.has(name) &&
           !EXCLUDED_ENTITIES.has(id)
         ) {
+          // ผูกข้อมูลประเทศเข้ากับรหัส id (Key)
           map[id] = {
             name: name,
             iso2: c.iso2Code ? c.iso2Code.toLowerCase() : '',
@@ -205,9 +211,15 @@ async function getCountryMetadata() {
   }
 }
 
-// ==========================================
-// 5. อัลกอริทึม Bubble Sort (เรียงจากค่ามากไปหาน้อย)
-// ==========================================
+// ==============================================================
+// 5. [DSA: Bubble Sort] เรียงจากค่ามากไปหาน้อย (เขียนเอง)
+// ==============================================================
+/**
+ * [หน้าที่]: จัดเรียงข้อมูลสถิติจากค่ามากไปหาน้อย
+ * [ประโยชน์ต่อ UX]: ทำให้ตารางแสดงผลเรียงตามอันดับตัวเลข ผู้ใช้ไม่ต้องไล่หาเอง
+ * @param {Array} arr - รายการข้อมูลที่ต้องการเรียง
+ * @returns {Array} รายการข้อมูลที่จัดเรียงเรียบร้อยแล้ว
+ */
 function bubbleSort(arr) {
   let result = [...arr];
   for (let i = 0; i < result.length; i++) {
@@ -222,9 +234,12 @@ function bubbleSort(arr) {
   return result;
 }
 
-// ==========================================
+// ==============================================================
 // 6. ฟังก์ชันประเมินสถานะตัวเลข (ดี = เขียว / แย่ = แดง) และทิศทางลูกศร
-// ==========================================
+// ==============================================================
+/**
+ * [หน้าที่]: ตรวจสอบค่าทางเศรษฐศาสตร์เพื่อส่งคลาสสีและทิศทางลูกศร SVG ให้หน้าบ้าน
+ */
 function getIndicatorStatus(type, value) {
   if (type === 'gdp') {
     // GDP: > 0 = ดี (เขียว, up), <= 0 = แย่ (แดง, down)
@@ -258,9 +273,9 @@ function getIndicatorStatus(type, value) {
   return { colorClass: 'green', trend: 'up' };
 }
 
-// ==========================================
+// ==============================================================
 // 7. ฟังก์ชันดึงข้อมูลจาก World Bank API ตามปีที่เลือก
-// ==========================================
+// ==============================================================
 async function fetchIndicatorFromWorldBank(indicatorCode, year) {
   const [countryMap, rawResponse] = await Promise.all([
     getCountryMetadata(),
@@ -274,7 +289,7 @@ async function fetchIndicatorFromWorldBank(indicatorCode, year) {
     for (let item of rawResponse[1]) {
       const code = item.countryiso3code || (item.country && item.country.id);
 
-      // ต้องมีตัวเลข และต้องเป็นประเทศจริงที่ผ่านการคัดกรองใน countryMap เท่านั้น
+      // [DSA: Hash Table Lookup]: ค้นหาด้วย countryMap[code] O(1)
       if (item.value !== null && countryMap[code] && !EXCLUDED_ENTITIES.has(countryMap[code].name)) {
         list.push({
           country: countryMap[code].name,
@@ -291,25 +306,26 @@ async function fetchIndicatorFromWorldBank(indicatorCode, year) {
   return list;
 }
 
-// ==========================================
-// 8. REST API Route: GET /api/indicator-data
-// ==========================================
+// ==============================================================
+// 8. REST API Route: GET /api/indicator-data (ส่งข้อมูลตารางให้หน้าบ้าน)
+// ==============================================================
 router.get('/indicator-data', async (req, res) => {
   const type = (req.query.type || 'gdp').toLowerCase();
   const year = req.query.year || '2025';
   const search = (req.query.search || '').trim().toLowerCase();
 
   const code = INDICATOR_CODES[type] || INDICATOR_CODES.gdp;
-  const cacheKey = `${type}_${year}`;
+  const cacheKey = `${type}_${year}`; // Key ของ Hash Table สำหรับแคช
 
   try {
     let list;
+    // [DSA: Hash Table Cache]: ถ้าเคยดึงปีและประเภทนี้แล้ว ให้หยิบจากแคชทันที
     if (indicatorCache[cacheKey]) {
       list = indicatorCache[cacheKey];
     } else {
       const raw = await fetchIndicatorFromWorldBank(code, year);
-      list = bubbleSort(raw);
-      indicatorCache[cacheKey] = list;
+      list = bubbleSort(raw); // เรียงลำดับด้วย Bubble Sort
+      indicatorCache[cacheKey] = list; // เก็บลง Hash Cache
     }
 
     // กรองค้นหาตามชื่อประเทศ รหัสประเทศ หรือชื่อภูมิภาค
