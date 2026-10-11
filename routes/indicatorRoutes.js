@@ -170,6 +170,10 @@ async function getCountryMetadata() {
 
   try {
     const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=350');
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
     const data = await res.json();
     const map = {}; // Hash Table ว่างเปล่าสำหรับใส่ข้อมูล
 
@@ -203,9 +207,13 @@ async function getCountryMetadata() {
       });
     }
 
-    countryMetadataCache = map;
-    return countryMetadataCache;
+    if (Object.keys(map).length > 0) {
+      countryMetadataCache = map;
+    }
+
+    return countryMetadataCache || {};
   } catch (err) {
+    countryMetadataCache = null;
     console.error('[indicatorRoutes] ไม่สามารถโหลด Metadata ประเทศได้:', err.message);
     return {};
   }
